@@ -208,7 +208,7 @@ func TestInsertAuditLog_Error(t *testing.T) {
 	tmpFile.Close()
 	defer os.Remove(tmpFile.Name())
 
-	if err := storage.Init(tmpFile.Name()); err != nil {
+	if err = storage.Init(tmpFile.Name()); err != nil {
 		t.Fatalf("Failed to init storage: %v", err)
 	}
 	// Force close
@@ -235,7 +235,7 @@ func TestGetAuditLogs_Error(t *testing.T) {
 	tmpFile.Close()
 	defer os.Remove(tmpFile.Name())
 
-	if err := storage.Init(tmpFile.Name()); err != nil {
+	if err = storage.Init(tmpFile.Name()); err != nil {
 		t.Fatalf("Failed to init storage: %v", err)
 	}
 	storage.Close()

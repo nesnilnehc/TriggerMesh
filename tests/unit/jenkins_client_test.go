@@ -11,6 +11,8 @@ import (
 	"triggermesh/internal/engine/jenkins"
 )
 
+const crumbIssuerPath = "/crumbIssuer/api/json"
+
 func TestNewClient(t *testing.T) {
 	cfg := config.JenkinsConfig{
 		URL:      "http://jenkins.example.com/",
@@ -37,7 +39,7 @@ func TestTriggerBuild_Success(t *testing.T) {
 			return
 		}
 
-		if r.URL.Path == "/crumbIssuer/api/json" {
+		if r.URL.Path == crumbIssuerPath {
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte(`{"crumb":"test-crumb","crumbRequestField":"Jenkins-Crumb"}`))
 			return
@@ -83,7 +85,7 @@ func TestTriggerBuild_Success(t *testing.T) {
 
 func TestTriggerBuild_WithParams(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/crumbIssuer/api/json" {
+		if r.URL.Path == crumbIssuerPath {
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte(`{"crumb":"test-crumb","crumbRequestField":"Jenkins-Crumb"}`))
 			return
@@ -125,7 +127,7 @@ func TestTriggerBuild_WithParams(t *testing.T) {
 
 func TestTriggerBuild_Failure(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/crumbIssuer/api/json" {
+		if r.URL.Path == crumbIssuerPath {
 			// Mock crumb failure, client should proceed
 			w.WriteHeader(http.StatusNotFound)
 			return
