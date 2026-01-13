@@ -14,26 +14,42 @@ TriggerMesh 是一个 轻量级、可控、可审计的 CI Build 触发中枢服
 
 ## 核心能力
 
-- 统一 HTTP Trigger API
-- API Key 鉴权（最小安全边界）
-- 触发请求与结果审计
-- Jenkins
-  - 参数化触发 Jenkins Pipeline / Job
-  - Jenkins Token 内聚，不对外暴露
+- **统一触发接口**：标准化的 HTTP REST API，用于触发 CI 构建，抽象化不同 CI 平台的实现细节
+- **API Key 认证**：基于 Bearer Token 的 API Key 认证机制，提供访问控制
+- **请求审计**：持久化记录所有触发请求（成功/失败），支持通过 API 查询历史记录
+- **CI 引擎抽象层**：可插拔的 CI 引擎接口，支持扩展多种 CI 平台（目前支持 Jenkins，更多引擎规划中）
+- **Jenkins 引擎**（当前实现）：支持参数化触发 Jenkins Pipeline/Job，凭证封装在服务内部（Jenkins Token 不对外暴露）
 
 ## 整体架构
 
-```text
-[ Caller System ]
-        |
-        v
-[ TriggerMesh API ]
-        |
-        v
-[ Jenkins HTTP API ]
-        |
-        v
-[ Jenkins Agents ]
+```mermaid
+flowchart TB
+    Caller[调用系统] --> API[TriggerMesh API<br/>RESTful HTTP 接口]
+    API --> Auth[API Key 认证]
+    Auth --> Audit[审计日志]
+    Audit --> Abstraction[CI 引擎抽象层]
+    
+    Abstraction --> Jenkins[Jenkins 引擎<br/>已实现]
+    Abstraction --> GitLab[GitLab CI 引擎<br/>规划中]
+    Abstraction --> GitHub[GitHub Actions 引擎<br/>规划中]
+    Abstraction --> Others[其他 CI 引擎<br/>可扩展]
+    
+    Jenkins --> JenkinsAPI[Jenkins HTTP API]
+    GitLab -.-> GitLabAPI[GitLab CI API]
+    GitHub -.-> GitHubAPI[GitHub API]
+    Others -.-> OtherAPIs[其他 CI API]
+    
+    JenkinsAPI --> JenkinsAgents[Jenkins Agents]
+    
+    style Jenkins fill:#90EE90
+    style JenkinsAPI fill:#90EE90
+    style JenkinsAgents fill:#90EE90
+    style GitLab fill:#FFE4B5
+    style GitHub fill:#FFE4B5
+    style Others fill:#FFE4B5
+    style GitLabAPI stroke-dasharray: 5 5
+    style GitHubAPI stroke-dasharray: 5 5
+    style OtherAPIs stroke-dasharray: 5 5
 ```
 
 ## 技术选型
@@ -122,6 +138,8 @@ server:
   port: 8080
 database:
   path: ./triggermesh.db
+# CI 引擎配置
+# 目前仅支持 Jenkins。更多引擎将在未来版本中添加。
 jenkins:
   url: https://your-jenkins-url
   token: your-jenkins-token
@@ -138,7 +156,11 @@ triggermesh --config config.yaml
 
 ## API 文档
 
-### 触发 Jenkins 构建
+### 触发 CI 构建
+
+目前 TriggerMesh 支持 Jenkins 作为第一个 CI 引擎实现。API 设计支持未来扩展多种 CI 引擎。
+
+#### 触发 Jenkins 构建
 
 ```http
 POST /api/v1/trigger/jenkins
@@ -180,7 +202,11 @@ Authorization: Bearer your-api-key
 |-------------|--------|------------------|------------------------|
 | database.path | string | ./triggermesh.db | SQLite 数据库文件路径 |
 
-### Jenkins 配置
+### CI 引擎配置
+
+目前仅支持 Jenkins 引擎。其他 CI 引擎的配置将在实现后添加。
+
+#### Jenkins 配置
 
 | 配置项        | 类型   | 默认值 | 说明              |
 |-------------|--------|--------|-------------------|
@@ -234,10 +260,10 @@ Authorization: Bearer your-api-key
 
 ### 2. 集成测试
 
-- **测试范围**：组件间集成，如API+数据库、API+Jenkins集成等
+- **测试范围**：组件间集成，如API+数据库、API+CI引擎集成（目前为Jenkins）等
 - **测试框架**：Go标准库`testing` + `testify/assert`
 - **执行命令**：`go test ./tests/integration/...`
-- **环境要求**：需要实际的SQLite数据库和Jenkins测试实例
+- **环境要求**：需要实际的SQLite数据库和CI引擎测试实例（目前为Jenkins）
 - **测试数据**：使用独立的测试数据库，避免影响生产数据
 
 ### 3. 端到端测试
@@ -262,7 +288,7 @@ tests/
 │   └── engine_test.go  # CI引擎抽象层测试
 ├── integration/        # 集成测试
 │   ├── api_test.go     # API集成测试
-│   └── jenkins_test.go # Jenkins集成测试
+│   └── jenkins_test.go # Jenkins引擎集成测试
 └── e2e/                # 端到端测试
     └── trigger_test.go # 触发流程测试
 ```

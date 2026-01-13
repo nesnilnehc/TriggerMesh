@@ -60,16 +60,16 @@ func TestAuthMiddleware(t *testing.T) {
 		}
 	})
 
-	// Test valid API key in query parameter
-	t.Run("Valid API key in query parameter", func(t *testing.T) {
+	// Test API key in query parameter (should be rejected for security)
+	t.Run("API key in query parameter rejected", func(t *testing.T) {
 		req := httptest.NewRequest("GET", "/test?api_key=valid-key-1", nil)
 		rr := httptest.NewRecorder()
 
 		handler := authMiddleware.Middleware(testHandler)
 		handler.ServeHTTP(rr, req)
 
-		if rr.Code != http.StatusOK {
-			t.Errorf("Expected status 200, got %d", rr.Code)
+		if rr.Code != http.StatusUnauthorized {
+			t.Errorf("Expected status 401 (query params not supported), got %d", rr.Code)
 		}
 	})
 
@@ -140,8 +140,8 @@ func TestGetAPIKey(t *testing.T) {
 	}{
 		{"From Authorization header", "Bearer test-key", "", "test-key"},
 		{"From Authorization header without Bearer", "test-key", "", "test-key"},
-		{"From query parameter", "", "test-key", "test-key"},
-		{"Authorization takes precedence", "Bearer header-key", "query-key", "header-key"},
+		{"From query parameter (ignored for security)", "", "test-key", ""},
+		{"Authorization header only", "Bearer header-key", "query-key", "header-key"},
 		{"No API key", "", "", ""},
 	}
 

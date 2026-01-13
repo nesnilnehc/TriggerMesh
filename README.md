@@ -14,26 +14,42 @@ TriggerMesh is a lightweight, controllable, and auditable CI Build trigger hub s
 
 ## Core Capabilities
 
-- Unified HTTP Trigger API
-- API Key Authentication (minimum security boundary)
-- Trigger request and result auditing
-- Jenkins Integration
-  - Parameterized triggering of Jenkins Pipeline/Job
-  - Jenkins Token encapsulation (not exposed externally)
+- **Unified Trigger API**: Standardized HTTP REST API for triggering CI builds, abstracting platform-specific implementations
+- **API Key Authentication**: Bearer token-based API key authentication for secure access control
+- **Request Auditing**: Persistent audit logging of all trigger requests (success/failure) with queryable history via API
+- **CI Engine Abstraction**: Pluggable CI engine interface enabling support for multiple CI platforms (currently supports Jenkins, with more engines planned)
+- **Jenkins Engine** (Current Implementation): Parameterized Jenkins Pipeline/Job triggering with credential encapsulation (Jenkins tokens stored internally, not exposed to clients)
 
 ## Architecture
 
-```text
-[ Caller System ]
-        |
-        v
-[ TriggerMesh API ]
-        |
-        v
-[ Jenkins HTTP API ]
-        |
-        v
-[ Jenkins Agents ]
+```mermaid
+flowchart TB
+    Caller[Caller System] --> API[TriggerMesh API<br/>RESTful HTTP Interface]
+    API --> Auth[API Key Authentication]
+    Auth --> Audit[Audit Logging]
+    Audit --> Abstraction[CI Engine Abstraction Layer]
+    
+    Abstraction --> Jenkins[Jenkins Engine<br/>Implemented]
+    Abstraction --> GitLab[GitLab CI Engine<br/>Planned]
+    Abstraction --> GitHub[GitHub Actions Engine<br/>Planned]
+    Abstraction --> Others[Other CI Engines<br/>Extensible]
+    
+    Jenkins --> JenkinsAPI[Jenkins HTTP API]
+    GitLab -.-> GitLabAPI[GitLab CI API]
+    GitHub -.-> GitHubAPI[GitHub API]
+    Others -.-> OtherAPIs[Other CI APIs]
+    
+    JenkinsAPI --> JenkinsAgents[Jenkins Agents]
+    
+    style Jenkins fill:#90EE90
+    style JenkinsAPI fill:#90EE90
+    style JenkinsAgents fill:#90EE90
+    style GitLab fill:#FFE4B5
+    style GitHub fill:#FFE4B5
+    style Others fill:#FFE4B5
+    style GitLabAPI stroke-dasharray: 5 5
+    style GitHubAPI stroke-dasharray: 5 5
+    style OtherAPIs stroke-dasharray: 5 5
 ```
 
 ## Technology Stack
@@ -122,6 +138,8 @@ server:
   port: 8080
 database:
   path: ./triggermesh.db
+# CI Engine Configuration
+# Currently only Jenkins is supported. More engines will be added in future releases.
 jenkins:
   url: https://your-jenkins-url
   token: your-jenkins-token
@@ -138,7 +156,11 @@ triggermesh --config config.yaml
 
 ## API Documentation
 
-### Trigger Jenkins Build
+### Trigger CI Build
+
+Currently, TriggerMesh supports Jenkins as the first CI engine implementation. The API is designed to support multiple CI engines in the future.
+
+#### Trigger Jenkins Build
 
 ```http
 POST /api/v1/trigger/jenkins
@@ -180,7 +202,11 @@ Authorization: Bearer your-api-key
 |-----------------|--------|------------------|--------------------------|
 | database.path   | string | ./triggermesh.db | SQLite database file path|
 
-### Jenkins Configuration
+### CI Engine Configuration
+
+Currently, only Jenkins engine is supported. Configuration for other CI engines will be added as they are implemented.
+
+#### Jenkins Configuration
 
 | Configuration   | Type   | Default | Description            |
 |-----------------|--------|---------|------------------------|
@@ -234,10 +260,10 @@ This project uses `triggermesh` as the module path, with import paths in code as
 
 ### 2. Integration Tests
 
-- **Scope**: Component integration, such as API+Database, API+Jenkins integration, etc.
+- **Scope**: Component integration, such as API+Database, API+CI engine integration (currently Jenkins), etc.
 - **Framework**: Go standard library `testing` + `testify/assert`
 - **Command**: `go test ./tests/integration/...`
-- **Requirements**: Requires actual SQLite database and Jenkins test instance
+- **Requirements**: Requires actual SQLite database and CI engine test instance (currently Jenkins)
 - **Test Data**: Use independent test database to avoid affecting production data
 
 ### 3. End-to-End Tests
@@ -262,7 +288,7 @@ tests/
 │   └── engine_test.go  # CI engine abstraction layer tests
 ├── integration/        # Integration tests
 │   ├── api_test.go     # API integration tests
-│   └── jenkins_test.go # Jenkins integration tests
+│   └── jenkins_test.go # Jenkins engine integration tests
 └── e2e/                # End-to-end tests
     └── trigger_test.go # Trigger flow tests
 ```

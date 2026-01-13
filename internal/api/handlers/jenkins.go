@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"regexp"
+	"strings"
 	"time"
 
 	"triggermesh/internal/api/middleware"
@@ -31,6 +33,15 @@ type TriggerJenkinsBuildRequest struct {
 	Parameters map[string]string `json:"parameters"`
 }
 
+var (
+	// jobNameRegex validates Jenkins job names (supports folder structure: folder/subfolder/job)
+	// Jenkins job names can contain: alphanumeric, underscore, hyphen, slash, and spaces
+	jobNameRegex = regexp.MustCompile(`^[a-zA-Z0-9_/\- ]+$`)
+	// parameterKeyRegex validates parameter keys (alphanumeric, underscore, hyphen, dot)
+	// No leading/trailing dots, no consecutive dots
+	parameterKeyRegex = regexp.MustCompile(`^[a-zA-Z0-9_-]+(\.[a-zA-Z0-9_-]+)*$`)
+)
+
 // TriggerJenkinsBuild handles the POST /api/v1/trigger/jenkins request
 func (h *JenkinsHandler) TriggerJenkinsBuild(w http.ResponseWriter, r *http.Request) {
 	// Get API key from context
@@ -39,25 +50,35 @@ func (h *JenkinsHandler) TriggerJenkinsBuild(w http.ResponseWriter, r *http.Requ
 		apiKey = "unknown"
 	}
 
+	// Get request ID for logging
+	requestID := middleware.GetRequestID(r)
+
 	// Parse request body
 	var req TriggerJenkinsBuildRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		logger.Error("Failed to parse request body", "error", err)
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		logger.Error("Failed to parse request body", "error", err, "request_id", requestID)
+		writeErrorWithRequestID(w, r, http.StatusBadRequest, "Invalid request body")
 		return
 	}
 
 	// Validate required fields
 	if req.Job == "" {
-		logger.Error("Job name is required")
-		http.Error(w, "Job name is required", http.StatusBadRequest)
+		logger.Error("Job name is required", "request_id", requestID)
+		writeErrorWithRequestID(w, r, http.StatusBadRequest, "Job name is required")
 		return
 	}
 
 	// Validate job name length (Jenkins job names are typically limited)
 	if len(req.Job) > 255 {
-		logger.Error("Job name too long", "length", len(req.Job))
-		http.Error(w, "Job name exceeds maximum length of 255 characters", http.StatusBadRequest)
+		logger.Error("Job name too long", "length", len(req.Job), "request_id", requestID)
+		writeErrorWithRequestID(w, r, http.StatusBadRequest, "Job name exceeds maximum length of 255 characters")
+		return
+	}
+
+	// Validate job name format (supports folder structure: folder/subfolder/job)
+	if !jobNameRegex.MatchString(req.Job) {
+		logger.Error("Invalid job name format", "job", req.Job, "request_id", requestID)
+		writeErrorWithRequestID(w, r, http.StatusBadRequest, "Invalid job name format: only alphanumeric characters, underscores, hyphens, slashes, and spaces are allowed")
 		return
 	}
 
@@ -65,24 +86,45 @@ func (h *JenkinsHandler) TriggerJenkinsBuild(w http.ResponseWriter, r *http.Requ
 	if req.Parameters != nil {
 		// Limit number of parameters
 		if len(req.Parameters) > 100 {
-			logger.Error("Too many parameters", "count", len(req.Parameters))
-			http.Error(w, "Maximum 100 parameters allowed", http.StatusBadRequest)
+			logger.Error("Too many parameters", "count", len(req.Parameters), "request_id", requestID)
+			writeErrorWithRequestID(w, r, http.StatusBadRequest, "Maximum 100 parameters allowed")
 			return
 		}
 
 		// Validate parameter keys and values
 		for key, value := range req.Parameters {
+			// Validate parameter key is not empty
+			if key == "" {
+				logger.Error("Parameter key cannot be empty", "request_id", requestID)
+				writeErrorWithRequestID(w, r, http.StatusBadRequest, "Parameter key cannot be empty")
+				return
+			}
+
 			// Validate parameter key length
 			if len(key) > 255 {
-				logger.Error("Parameter key too long", "key", key, "length", len(key))
-				http.Error(w, fmt.Sprintf("Parameter key '%s' exceeds maximum length of 255 characters", key), http.StatusBadRequest)
+				logger.Error("Parameter key too long", "key", key, "length", len(key), "request_id", requestID)
+				writeErrorWithRequestID(w, r, http.StatusBadRequest, fmt.Sprintf("Parameter key '%s' exceeds maximum length of 255 characters", key))
+				return
+			}
+
+			// Validate parameter key format (no leading/trailing dots, no consecutive dots)
+			if !parameterKeyRegex.MatchString(key) {
+				logger.Error("Invalid parameter key format", "key", key, "request_id", requestID)
+				writeErrorWithRequestID(w, r, http.StatusBadRequest, fmt.Sprintf("Invalid parameter key format '%s': only alphanumeric characters, underscores, hyphens, and dots (not leading/trailing/consecutive) are allowed", key))
+				return
+			}
+
+			// Additional validation: check for leading/trailing dots and consecutive dots
+			if strings.HasPrefix(key, ".") || strings.HasSuffix(key, ".") || strings.Contains(key, "..") {
+				logger.Error("Invalid parameter key format", "key", key, "request_id", requestID, "reason", "leading/trailing/consecutive dots not allowed")
+				writeErrorWithRequestID(w, r, http.StatusBadRequest, fmt.Sprintf("Invalid parameter key format '%s': dots cannot be leading, trailing, or consecutive", key))
 				return
 			}
 
 			// Validate parameter value length (limit to 10KB per parameter)
 			if len(value) > 10240 {
-				logger.Error("Parameter value too long", "key", key, "length", len(value))
-				http.Error(w, fmt.Sprintf("Parameter value for '%s' exceeds maximum length of 10KB", key), http.StatusBadRequest)
+				logger.Error("Parameter value too long", "key", key, "length", len(value), "request_id", requestID)
+				writeErrorWithRequestID(w, r, http.StatusBadRequest, fmt.Sprintf("Parameter value for '%s' exceeds maximum length of 10KB", key))
 				return
 			}
 		}
@@ -91,7 +133,7 @@ func (h *JenkinsHandler) TriggerJenkinsBuild(w http.ResponseWriter, r *http.Requ
 	// Trigger the build
 	result, err := h.jenkinsEngine.TriggerBuild(req.Job, req.Parameters)
 	if err != nil {
-		logger.Error("Failed to trigger Jenkins build", "error", err, "job", req.Job)
+		logger.Error("Failed to trigger Jenkins build", "error", err, "job", req.Job, "request_id", requestID)
 
 		// Log the failure to audit logs
 		auditLog := models.AuditLog{

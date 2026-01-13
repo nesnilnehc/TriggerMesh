@@ -2,6 +2,7 @@ package jenkins
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -43,7 +44,7 @@ func NewClient(cfg config.JenkinsConfig) *Client {
 }
 
 // doRequest sends an HTTP request to the Jenkins API
-func (c *Client) doRequest(method, path string, body interface{}) ([]byte, error) {
+func (c *Client) doRequest(ctx context.Context, method, path string, body interface{}) ([]byte, error) {
 	// Build the full URL
 	url := c.url + path
 
@@ -57,8 +58,8 @@ func (c *Client) doRequest(method, path string, body interface{}) ([]byte, error
 		reqBody = bytes.NewBuffer(jsonBody)
 	}
 
-	// Create the request
-	req, err := http.NewRequest(method, url, reqBody)
+	// Create the request with context
+	req, err := http.NewRequestWithContext(ctx, method, url, reqBody)
 	if err != nil {
 		return nil, err
 	}
@@ -87,7 +88,7 @@ func (c *Client) doRequest(method, path string, body interface{}) ([]byte, error
 	// Check if the response status is successful
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		logger.Error("Jenkins API request failed", "status", resp.Status, "body", string(respBody), "url", url)
-		return nil, fmt.Errorf("jenkins api request failed: %s - %s", resp.Status, string(respBody))
+		return nil, formatJenkinsError(resp.StatusCode, string(respBody))
 	}
 
 	return respBody, nil
@@ -95,11 +96,11 @@ func (c *Client) doRequest(method, path string, body interface{}) ([]byte, error
 
 // doBuildRequest sends a POST request to trigger a Jenkins build without parameters
 // Returns build ID and build URL extracted from the Location header
-func (c *Client) doBuildRequest(buildPath string) (string, string, error) {
+func (c *Client) doBuildRequest(ctx context.Context, buildPath string) (string, string, error) {
 	fullURL := c.url + buildPath
 
 	// Get CSRF crumb first - some Jenkins versions require it in the form data
-	crumbField, crumbValue, err := c.getCrumb()
+	crumbField, crumbValue, err := c.getCrumb(ctx)
 	if err != nil {
 		logger.Warn("Failed to get CSRF crumb, proceeding without it", "error", err)
 	}
@@ -117,8 +118,8 @@ func (c *Client) doBuildRequest(buildPath string) (string, string, error) {
 
 	reqBody := strings.NewReader(formData.Encode())
 
-	// Create the request
-	req, err := http.NewRequest("POST", fullURL, reqBody)
+	// Create the request with context
+	req, err := http.NewRequestWithContext(ctx, "POST", fullURL, reqBody)
 	if err != nil {
 		return "", "", err
 	}
@@ -151,7 +152,7 @@ func (c *Client) doBuildRequest(buildPath string) (string, string, error) {
 	// Check if the response status is successful
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		logger.Error("Jenkins build request failed", "status", resp.Status, "body", string(respBody), "url", fullURL)
-		return "", "", fmt.Errorf("jenkins build request failed: %s - %s", resp.Status, string(respBody))
+		return "", "", formatJenkinsError(resp.StatusCode, string(respBody))
 	}
 
 	// Extract build ID and URL from Location header
@@ -163,7 +164,7 @@ func (c *Client) doBuildRequest(buildPath string) (string, string, error) {
 
 // doParameterizedRequest sends a POST request to trigger a Jenkins build with parameters
 // Jenkins buildWithParameters expects form-encoded data
-func (c *Client) doParameterizedRequest(buildPath string, params map[string]string) (string, string, error) {
+func (c *Client) doParameterizedRequest(ctx context.Context, buildPath string, params map[string]string) (string, string, error) {
 	fullURL := c.url + buildPath
 
 	// Create form data
@@ -172,8 +173,8 @@ func (c *Client) doParameterizedRequest(buildPath string, params map[string]stri
 		formData.Set(k, v)
 	}
 
-	// Create the request with form-encoded body
-	req, err := http.NewRequest("POST", fullURL, strings.NewReader(formData.Encode()))
+	// Create the request with form-encoded body and context
+	req, err := http.NewRequestWithContext(ctx, "POST", fullURL, strings.NewReader(formData.Encode()))
 	if err != nil {
 		return "", "", err
 	}
@@ -186,7 +187,7 @@ func (c *Client) doParameterizedRequest(buildPath string, params map[string]stri
 	req.Header.Set("Authorization", "Basic "+auth)
 
 	// Jenkins expects a CSRF token for POST requests
-	crumbField, crumbValue, err := c.getCrumb()
+	crumbField, crumbValue, err := c.getCrumb(ctx)
 	if err != nil {
 		logger.Warn("Failed to get CSRF crumb, proceeding without it", "error", err)
 	} else if crumbField != "" && crumbValue != "" {
@@ -209,7 +210,7 @@ func (c *Client) doParameterizedRequest(buildPath string, params map[string]stri
 	// Check if the response status is successful
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		logger.Error("Jenkins parameterized build request failed", "status", resp.Status, "body", string(respBody), "url", fullURL)
-		return "", "", fmt.Errorf("jenkins parameterized build request failed: %s - %s", resp.Status, string(respBody))
+		return "", "", formatJenkinsError(resp.StatusCode, string(respBody))
 	}
 
 	// Extract build ID and URL from Location header
@@ -221,10 +222,10 @@ func (c *Client) doParameterizedRequest(buildPath string, params map[string]stri
 
 // getCrumb retrieves the CSRF crumb from Jenkins for POST requests
 // Returns the crumb field name and value separately
-func (c *Client) getCrumb() (string, string, error) {
+func (c *Client) getCrumb(ctx context.Context) (string, string, error) {
 	crumbURL := c.url + "/crumbIssuer/api/json"
 
-	req, err := http.NewRequest("GET", crumbURL, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", crumbURL, nil)
 	if err != nil {
 		return "", "", err
 	}
@@ -302,4 +303,24 @@ func (c *Client) extractBuildInfo(location, buildPath string) (string, string) {
 	}
 
 	return "", ""
+}
+
+// formatJenkinsError formats Jenkins API errors into user-friendly messages
+// without exposing internal implementation details
+func formatJenkinsError(statusCode int, responseBody string) error {
+	switch statusCode {
+	case http.StatusUnauthorized:
+		return fmt.Errorf("authentication failed: invalid credentials")
+	case http.StatusForbidden:
+		return fmt.Errorf("access denied: insufficient permissions")
+	case http.StatusNotFound:
+		return fmt.Errorf("resource not found")
+	case http.StatusBadRequest:
+		return fmt.Errorf("invalid request")
+	case http.StatusInternalServerError, http.StatusBadGateway, http.StatusServiceUnavailable:
+		return fmt.Errorf("jenkins server error: please try again later")
+	default:
+		// For other errors, return a generic message
+		return fmt.Errorf("jenkins api request failed")
+	}
 }

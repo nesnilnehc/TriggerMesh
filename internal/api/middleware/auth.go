@@ -45,16 +45,12 @@ func (am *AuthMiddleware) ValidateAPIKey(apiKey string) bool {
 }
 
 // GetAPIKey extracts the API key from the request
+// Only supports Authorization header for security reasons (query parameters can be logged)
 func GetAPIKey(r *http.Request) string {
-	// Try to get API key from Authorization header
+	// Only get API key from Authorization header
 	if authHeader := r.Header.Get("Authorization"); authHeader != "" {
 		// Remove Bearer prefix if present
 		return strings.TrimPrefix(authHeader, "Bearer ")
-	}
-
-	// Try to get API key from query parameter
-	if apiKey := r.URL.Query().Get("api_key"); apiKey != "" {
-		return apiKey
 	}
 
 	return ""

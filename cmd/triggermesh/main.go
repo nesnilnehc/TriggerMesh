@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"net/http"
@@ -8,6 +9,7 @@ import (
 	"os/signal"
 	"strconv"
 	"syscall"
+	"time"
 
 	"triggermesh/internal/api"
 	"triggermesh/internal/config"
@@ -76,6 +78,21 @@ func main() {
 	<-quit
 
 	logger.Info("Shutting down server...")
+
+	// Create a context with timeout for graceful shutdown
+	// Use 30 seconds for production to allow long-running requests to complete
+	shutdownTimeout := 30 * time.Second
+	ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+	defer cancel()
+
+	logger.Info("Initiating graceful shutdown", "timeout", shutdownTimeout.String())
+
+	// Shutdown the server gracefully
+	if err := server.Shutdown(ctx); err != nil {
+		logger.Error("Server forced to shutdown", "error", err, "timeout", shutdownTimeout.String())
+	} else {
+		logger.Info("Server shutdown gracefully")
+	}
 
 	// Close the database connection
 	if err := storage.Close(); err != nil {

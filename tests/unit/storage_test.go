@@ -271,3 +271,32 @@ func TestInit_Error(t *testing.T) {
 		storage.Close()
 	}
 }
+
+func TestPing(t *testing.T) {
+	// Test Ping with initialized database
+	tmpFile, err := os.CreateTemp("", "test-*.db")
+	if err != nil {
+		t.Fatalf("Failed to create temp file: %v", err)
+	}
+	tmpFile.Close()
+	defer os.Remove(tmpFile.Name())
+
+	err = storage.Init(tmpFile.Name())
+	if err != nil {
+		t.Fatalf("Failed to initialize storage: %v", err)
+	}
+	defer storage.Close()
+
+	// Ping should succeed
+	err = storage.Ping()
+	if err != nil {
+		t.Errorf("Expected Ping to succeed, got error: %v", err)
+	}
+
+	// Close and test Ping on closed database
+	storage.Close()
+	err = storage.Ping()
+	if err == nil {
+		t.Error("Expected error pinging closed database, got nil")
+	}
+}

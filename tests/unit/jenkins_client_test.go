@@ -154,8 +154,11 @@ func TestTriggerBuild_Failure(t *testing.T) {
 	if err == nil {
 		t.Fatal("Expected error, got nil")
 	}
-	if !strings.Contains(err.Error(), "500") {
-		t.Errorf("Expected 500 error, got %v", err)
+	// Error message format changed to be user-friendly
+	if err == nil {
+		t.Error("Expected error, got nil")
+	} else if !strings.Contains(err.Error(), "jenkins server error") && !strings.Contains(err.Error(), "500") {
+		t.Errorf("Expected jenkins server error or 500, got %v", err)
 	}
 }
 

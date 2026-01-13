@@ -1,6 +1,7 @@
 package jenkins
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -32,9 +33,10 @@ func TestDoRequest(t *testing.T) {
 		Timeout:  5,
 	}
 	client := NewClient(cfg)
+	ctx := context.Background()
 
 	// Test GET request
-	resp, err := client.DoRequest("GET", "/test-path", nil)
+	resp, err := client.DoRequest(ctx, "GET", "/test-path", nil)
 	if err != nil {
 		t.Fatalf("Failed to do GET request: %v", err)
 	}
@@ -44,7 +46,7 @@ func TestDoRequest(t *testing.T) {
 
 	// Test POST request with body
 	body := map[string]string{"foo": "bar"}
-	resp, err = client.DoRequest("POST", "/test-path", body)
+	resp, err = client.DoRequest(ctx, "POST", "/test-path", body)
 	if err != nil {
 		t.Fatalf("Failed to do POST request: %v", err)
 	}

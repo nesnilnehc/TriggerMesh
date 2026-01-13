@@ -1,6 +1,7 @@
 package jenkins
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/url"
@@ -60,10 +61,12 @@ func (t *Trigger) TriggerBuild(jobName string, params map[string]string) (*engin
 	var buildURL string
 	var err error
 
+	// Use context.Background() for now (can be improved to accept context from handler)
+	ctx := context.Background()
 	if len(params) > 0 {
-		buildID, buildURL, err = t.client.doParameterizedRequest(buildPath, params)
+		buildID, buildURL, err = t.client.doParameterizedRequest(ctx, buildPath, params)
 	} else {
-		buildID, buildURL, err = t.client.doBuildRequest(buildPath)
+		buildID, buildURL, err = t.client.doBuildRequest(ctx, buildPath)
 	}
 
 	if err != nil {
@@ -116,7 +119,9 @@ func (t *Trigger) GetBuildStatus(buildID string) (*engine.BuildResult, error) {
 	buildPath := fmt.Sprintf("/job/%s/%s/api/json", url.PathEscape(jobName), url.PathEscape(buildNumber))
 
 	// Send the request to Jenkins
-	respBody, err := t.client.doRequest("GET", buildPath, nil)
+	// Use context.Background() for now (can be improved to accept context from handler)
+	ctx := context.Background()
+	respBody, err := t.client.doRequest(ctx, "GET", buildPath, nil)
 	if err != nil {
 		return &engine.BuildResult{
 			Success: false,

@@ -2,6 +2,7 @@ package storage
 
 import (
 	"database/sql"
+	"fmt"
 	"time"
 
 	"triggermesh/internal/logger"
@@ -23,9 +24,10 @@ func Init(dbPath string) error {
 	}
 
 	// Configure connection pool
-	// SQLite doesn't support multiple writers, but we can optimize for concurrent reads
-	db.SetMaxOpenConns(25)                 // Maximum number of open connections
-	db.SetMaxIdleConns(5)                  // Maximum number of idle connections
+	// SQLite doesn't support concurrent writes, so we use a single connection
+	// This prevents database locking issues
+	db.SetMaxOpenConns(1)                  // Maximum number of open connections (SQLite limitation)
+	db.SetMaxIdleConns(1)                  // Maximum number of idle connections
 	db.SetConnMaxLifetime(5 * time.Minute) // Maximum connection lifetime
 
 	// Test the connection
@@ -59,8 +61,24 @@ func createTables() error {
 		error TEXT
 	)
 	`)
+	if err != nil {
+		return err
+	}
 
-	return err
+	// Create indexes for better query performance
+	indexes := []string{
+		"CREATE INDEX IF NOT EXISTS idx_audit_logs_timestamp ON audit_logs(timestamp)",
+		"CREATE INDEX IF NOT EXISTS idx_audit_logs_api_key ON audit_logs(api_key)",
+		"CREATE INDEX IF NOT EXISTS idx_audit_logs_job_name ON audit_logs(job_name)",
+	}
+
+	for _, indexSQL := range indexes {
+		if _, err := db.Exec(indexSQL); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // InsertAuditLog inserts a new audit log entry
@@ -146,6 +164,14 @@ func GetAuditLogs(limit, offset int) ([]models.AuditLog, error) {
 	}
 
 	return logs, nil
+}
+
+// Ping checks the database connection
+func Ping() error {
+	if db == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	return db.Ping()
 }
 
 // Close closes the database connection

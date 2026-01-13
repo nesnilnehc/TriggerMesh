@@ -2,6 +2,7 @@ package unit
 
 import (
 	"os"
+	"strings"
 	"testing"
 
 	"triggermesh/internal/config"
@@ -196,4 +197,121 @@ func TestGetLogLevel(t *testing.T) {
 		t.Errorf("Expected log level info for invalid value, got %s", level)
 	}
 	os.Unsetenv("TRIGGERMESH_LOG_LEVEL")
+}
+
+func TestConfigValidation(t *testing.T) {
+	tests := []struct {
+		name          string
+		configContent string
+		expectError   bool
+		errorContains string
+	}{
+		{
+			name: "Valid config",
+			configContent: `
+jenkins:
+  url: https://test-jenkins.example.com
+  token: test-token
+api:
+  keys:
+    - test-api-key
+`,
+			expectError: false,
+		},
+		{
+			name: "Missing Jenkins URL",
+			configContent: `
+jenkins:
+  token: test-token
+api:
+  keys:
+    - test-api-key
+`,
+			expectError:   true,
+			errorContains: "jenkins.url is required",
+		},
+		{
+			name: "Missing Jenkins Token",
+			configContent: `
+jenkins:
+  url: https://test-jenkins.example.com
+api:
+  keys:
+    - test-api-key
+`,
+			expectError:   true,
+			errorContains: "jenkins.token is required",
+		},
+		{
+			name: "Invalid Jenkins URL",
+			configContent: `
+jenkins:
+  url: "://invalid-url"
+  token: test-token
+api:
+  keys:
+    - test-api-key
+`,
+			expectError:   true,
+			errorContains: "invalid jenkins.url",
+		},
+		{
+			name: "Missing API Keys",
+			configContent: `
+jenkins:
+  url: https://test-jenkins.example.com
+  token: test-token
+api:
+  keys: []
+`,
+			expectError:   true,
+			errorContains: "at least one api.key is required",
+		},
+		{
+			name: "Invalid Port",
+			configContent: `
+server:
+  port: 70000
+jenkins:
+  url: https://test-jenkins.example.com
+  token: test-token
+api:
+  keys:
+    - test-api-key
+`,
+			expectError:   true,
+			errorContains: "invalid server.port",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpFile, err := os.CreateTemp("", "config-validation-test-*.yaml")
+			if err != nil {
+				t.Fatalf("Failed to create temp file: %v", err)
+			}
+			defer os.Remove(tmpFile.Name())
+
+			if _, writeErr := tmpFile.WriteString(tt.configContent); writeErr != nil {
+				t.Fatalf("Failed to write config: %v", writeErr)
+			}
+			tmpFile.Close()
+
+			cfg, err := config.Load(tmpFile.Name())
+			if tt.expectError {
+				if err == nil {
+					t.Errorf("Expected error but got none")
+				} else if tt.errorContains != "" && !strings.Contains(err.Error(), tt.errorContains) {
+					t.Errorf("Expected error to contain %q, got %q", tt.errorContains, err.Error())
+				}
+			} else {
+				if err != nil {
+					t.Errorf("Unexpected error: %v", err)
+				}
+				if cfg == nil {
+					t.Error("Config should not be nil")
+				}
+			}
+		})
+	}
 }

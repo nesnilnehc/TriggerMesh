@@ -1,6 +1,8 @@
 package config
 
 import (
+	"fmt"
+	"net/url"
 	"os"
 	"strconv"
 
@@ -17,8 +19,10 @@ type Config struct {
 
 // ServerConfig represents the server configuration
 type ServerConfig struct {
-	Port int    `yaml:"port"`
-	Host string `yaml:"host"`
+	Port           int      `yaml:"port"`
+	Host           string   `yaml:"host"`
+	AllowedOrigins []string `yaml:"allowed_origins"` // Empty slice means allow all origins (default, for backward compatibility)
+	MaxBodySize    int64    `yaml:"max_body_size"`   // Maximum request body size in bytes (default: 1MB)
 }
 
 // DatabaseConfig represents the database configuration
@@ -59,6 +63,11 @@ func Load(filePath string) (*Config, error) {
 
 	// Set default values if not provided
 	setDefaults(config)
+
+	// Validate configuration
+	if err := validateConfig(config); err != nil {
+		return nil, err
+	}
 
 	return config, nil
 }
@@ -106,6 +115,9 @@ func setDefaults(config *Config) {
 	if config.Server.Host == "" {
 		config.Server.Host = "0.0.0.0"
 	}
+	if config.Server.MaxBodySize == 0 {
+		config.Server.MaxBodySize = 1 << 20 // 1MB default
+	}
 
 	// Database defaults
 	if config.Database.Path == "" {
@@ -142,4 +154,43 @@ func GetLogLevel() string {
 	}
 
 	return "info"
+}
+
+// validateConfig validates the configuration
+func validateConfig(cfg *Config) error {
+	// Validate server port
+	if cfg.Server.Port < 1 || cfg.Server.Port > 65535 {
+		return fmt.Errorf("invalid server.port: %d (must be between 1 and 65535)", cfg.Server.Port)
+	}
+
+	// Validate max body size
+	if cfg.Server.MaxBodySize < 0 {
+		return fmt.Errorf("invalid server.max_body_size: %d (must be non-negative)", cfg.Server.MaxBodySize)
+	}
+	if cfg.Server.MaxBodySize > 100<<20 { // 100MB max
+		return fmt.Errorf("invalid server.max_body_size: %d (must be less than 100MB)", cfg.Server.MaxBodySize)
+	}
+
+	// Validate Jenkins configuration
+	if cfg.Jenkins.URL == "" {
+		return fmt.Errorf("jenkins.url is required")
+	}
+	if _, err := url.Parse(cfg.Jenkins.URL); err != nil {
+		return fmt.Errorf("invalid jenkins.url: %v", err)
+	}
+	if cfg.Jenkins.Token == "" {
+		return fmt.Errorf("jenkins.token is required")
+	}
+
+	// Validate API keys
+	if len(cfg.API.Keys) == 0 {
+		return fmt.Errorf("at least one api.key is required")
+	}
+	for i, key := range cfg.API.Keys {
+		if key == "" {
+			return fmt.Errorf("api.keys[%d] cannot be empty", i)
+		}
+	}
+
+	return nil
 }

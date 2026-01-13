@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"strconv"
 
+	"triggermesh/internal/api/middleware"
+	"triggermesh/internal/logger"
 	"triggermesh/internal/storage"
 )
 
@@ -42,10 +44,14 @@ func (h *AuditHandler) GetAuditLogs(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Get request ID for logging
+	requestID := middleware.GetRequestID(r)
+
 	// Get audit logs from database
 	logs, err := storage.GetAuditLogs(limit, offset)
 	if err != nil {
-		http.Error(w, "Failed to get audit logs", http.StatusInternalServerError)
+		logger.Error("Failed to get audit logs", "error", err, "request_id", requestID)
+		writeErrorWithRequestID(w, r, http.StatusInternalServerError, "Failed to get audit logs")
 		return
 	}
 
@@ -55,7 +61,8 @@ func (h *AuditHandler) GetAuditLogs(w http.ResponseWriter, r *http.Request) {
 
 	// Encode response
 	if err := json.NewEncoder(w).Encode(logs); err != nil {
-		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		logger.Error("Failed to encode audit logs response", "error", err, "request_id", requestID)
+		writeErrorWithRequestID(w, r, http.StatusInternalServerError, "Failed to encode response")
 		return
 	}
 }

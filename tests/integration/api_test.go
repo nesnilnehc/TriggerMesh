@@ -49,8 +49,9 @@ func setupTestServer(t *testing.T) (*httptest.Server, func()) {
 	// Create test config
 	cfg := config.Config{
 		Server: config.ServerConfig{
-			Port: 8080,
-			Host: "0.0.0.0",
+			Port:        8080,
+			Host:        "0.0.0.0",
+			MaxBodySize: 10 * 1024 * 1024, // 10MB for tests to allow larger test payloads
 		},
 		Database: config.DatabaseConfig{
 			Path: tmpFile.Name(),
@@ -98,6 +99,16 @@ func TestHealthEndpoint(t *testing.T) {
 
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("Expected status 200, got %d", resp.StatusCode)
+	}
+
+	// Check that response is JSON
+	var healthResp map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&healthResp); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+
+	if healthResp["status"] != "healthy" {
+		t.Errorf("Expected status 'healthy', got %v", healthResp["status"])
 	}
 }
 
@@ -249,9 +260,32 @@ func TestCORSHeaders(t *testing.T) {
 	}
 	defer resp.Body.Close()
 
-	// Check CORS headers
+	// Check CORS headers (default is allow all when no origins configured)
 	if resp.Header.Get("Access-Control-Allow-Origin") != "*" {
 		t.Errorf("Expected CORS header Access-Control-Allow-Origin: *, got %s",
 			resp.Header.Get("Access-Control-Allow-Origin"))
+	}
+}
+
+func TestRequestIDHeader(t *testing.T) {
+	server, cleanup := setupTestServer(t)
+	defer cleanup()
+
+	req, err := http.NewRequest("GET", server.URL+"/health", nil)
+	if err != nil {
+		t.Fatalf("Failed to create request: %v", err)
+	}
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Fatalf("Failed to make request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	// Check that request ID is in response header
+	requestID := resp.Header.Get("X-Request-ID")
+	if requestID == "" {
+		t.Error("Expected X-Request-ID header in response")
 	}
 }
