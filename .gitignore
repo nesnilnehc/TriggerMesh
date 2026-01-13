@@ -1,6 +1,7 @@
 # Binary files
 triggermesh
-main
+# main
+
 bin/*
 !bin/.gitkeep
 
@@ -20,7 +21,9 @@ data/*
 *.log
 
 # Go build files
-go.sum
+# go.sum SHOULD be committed
+# go.sum
+
 *.exe
 *.test
 *.out
