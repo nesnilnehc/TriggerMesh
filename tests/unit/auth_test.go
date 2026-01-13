@@ -20,7 +20,7 @@ func TestAuthMiddleware(t *testing.T) {
 
 	// Create a test handler
 	testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		apiKey, ok := r.Context().Value("api_key").(string)
+		apiKey, ok := r.Context().Value(middleware.APIKeyContextKey).(string)
 		if !ok {
 			t.Error("API key not found in context")
 			return

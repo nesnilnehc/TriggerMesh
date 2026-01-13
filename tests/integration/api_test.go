@@ -29,6 +29,23 @@ func setupTestServer(t *testing.T) (*httptest.Server, func()) {
 		t.Fatalf("Failed to initialize storage: %v", err)
 	}
 
+	// Create a mock Jenkins server
+	mockJenkins := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Mock Crumb Issuer
+		if r.URL.Path == "/crumbIssuer/api/json" {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"crumb": "test-crumb", "crumbRequestField": "Jenkins-Crumb"}`))
+			return
+		}
+		// Mock Build Job
+		if r.Method == "POST" {
+			w.WriteHeader(http.StatusCreated)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+
 	// Create test config
 	cfg := config.Config{
 		Server: config.ServerConfig{
@@ -39,7 +56,7 @@ func setupTestServer(t *testing.T) (*httptest.Server, func()) {
 			Path: tmpFile.Name(),
 		},
 		Jenkins: config.JenkinsConfig{
-			URL:     "https://test-jenkins.example.com",
+			URL:     mockJenkins.URL,
 			Token:   "test-token",
 			Timeout: 30,
 		},
@@ -48,7 +65,7 @@ func setupTestServer(t *testing.T) (*httptest.Server, func()) {
 		},
 	}
 
-	// Create Jenkins client and engine (will not actually connect to Jenkins)
+	// Create Jenkins client and engine
 	jenkinsClient := jenkins.NewClient(cfg.Jenkins)
 	jenkinsEngine := jenkins.NewTrigger(jenkinsClient)
 
@@ -61,6 +78,7 @@ func setupTestServer(t *testing.T) (*httptest.Server, func()) {
 	// Cleanup function
 	cleanup := func() {
 		server.Close()
+		mockJenkins.Close()
 		storage.Close()
 		os.Remove(tmpFile.Name())
 	}
@@ -157,10 +175,9 @@ func TestTriggerJenkinsWithAuth(t *testing.T) {
 	}
 	defer resp.Body.Close()
 
-	// The request will fail because Jenkins is not actually available,
-	// but it should pass authentication and reach the handler
-	if resp.StatusCode == http.StatusUnauthorized {
-		t.Error("Request was rejected due to authentication, but should have passed")
+	// The request should succeed now that we have a mock Jenkins server
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("Expected status 200, got %d", resp.StatusCode)
 	}
 }
 
