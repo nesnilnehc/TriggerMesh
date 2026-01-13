@@ -604,7 +604,7 @@ func TestTriggerJenkinsBuildSuccessPath(t *testing.T) {
 	}
 	defer os.Remove(tmpFile.Name())
 
-	if err := storage.Init(tmpFile.Name()); err != nil {
+	if err = storage.Init(tmpFile.Name()); err != nil {
 		t.Fatalf("Failed to init storage: %v", err)
 	}
 	defer storage.Close()
@@ -643,7 +643,7 @@ func TestTriggerJenkinsBuildSuccessPath(t *testing.T) {
 
 	// Verify response contains build result
 	var result engine.BuildResult
-	if err := json.NewDecoder(rr.Body).Decode(&result); err != nil {
+	if err = json.NewDecoder(rr.Body).Decode(&result); err != nil {
 		t.Fatalf("Failed to decode response: %v", err)
 	}
 
@@ -722,7 +722,7 @@ func TestTriggerJenkinsBuildWithAPIKeyNotInContext(t *testing.T) {
 	}
 	defer os.Remove(tmpFile.Name())
 
-	if err := storage.Init(tmpFile.Name()); err != nil {
+	if err = storage.Init(tmpFile.Name()); err != nil {
 		t.Fatalf("Failed to init storage: %v", err)
 	}
 	defer storage.Close()

@@ -310,7 +310,7 @@ func TestGetAuditLogsTimestampParsing(t *testing.T) {
 	tmpFile.Close()
 	defer os.Remove(tmpFile.Name())
 
-	if err := storage.Init(tmpFile.Name()); err != nil {
+	if err = storage.Init(tmpFile.Name()); err != nil {
 		t.Fatalf("Failed to init storage: %v", err)
 	}
 	defer storage.Close()
@@ -337,7 +337,7 @@ func TestGetAuditLogsTimestampParsing(t *testing.T) {
 	}
 
 	for _, log := range logs {
-		if err := storage.InsertAuditLog(log); err != nil {
+		if err = storage.InsertAuditLog(log); err != nil {
 			t.Fatalf("Failed to insert audit log: %v", err)
 		}
 	}
@@ -369,7 +369,7 @@ func TestGetAuditLogsEmptyResult(t *testing.T) {
 	tmpFile.Close()
 	defer os.Remove(tmpFile.Name())
 
-	if err := storage.Init(tmpFile.Name()); err != nil {
+	if err = storage.Init(tmpFile.Name()); err != nil {
 		t.Fatalf("Failed to init storage: %v", err)
 	}
 	defer storage.Close()
@@ -394,7 +394,7 @@ func TestGetAuditLogsWithRowsErr(t *testing.T) {
 	tmpFile.Close()
 	defer os.Remove(tmpFile.Name())
 
-	if err := storage.Init(tmpFile.Name()); err != nil {
+	if err = storage.Init(tmpFile.Name()); err != nil {
 		t.Fatalf("Failed to init storage: %v", err)
 	}
 	defer storage.Close()
@@ -408,7 +408,7 @@ func TestGetAuditLogsWithRowsErr(t *testing.T) {
 		Status:    200,
 		Result:    "success",
 	}
-	if err := storage.InsertAuditLog(log); err != nil {
+	if err = storage.InsertAuditLog(log); err != nil {
 		t.Fatalf("Failed to insert audit log: %v", err)
 	}
 
@@ -431,7 +431,7 @@ func TestGetAuditLogsTimestampFallback(t *testing.T) {
 	tmpFile.Close()
 	defer os.Remove(tmpFile.Name())
 
-	if err := storage.Init(tmpFile.Name()); err != nil {
+	if err = storage.Init(tmpFile.Name()); err != nil {
 		t.Fatalf("Failed to init storage: %v", err)
 	}
 	defer storage.Close()
@@ -446,7 +446,7 @@ func TestGetAuditLogsTimestampFallback(t *testing.T) {
 		Status:    200,
 		Result:    "success",
 	}
-	if err := storage.InsertAuditLog(log); err != nil {
+	if err = storage.InsertAuditLog(log); err != nil {
 		t.Fatalf("Failed to insert audit log: %v", err)
 	}
 

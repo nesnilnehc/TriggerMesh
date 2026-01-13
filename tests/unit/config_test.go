@@ -9,6 +9,19 @@ import (
 	"triggermesh/internal/config"
 )
 
+// testMinimalConfigContent is a shared minimal configuration content used across
+// multiple test functions to avoid duplication (DRY principle). This constant
+// contains the minimum required fields for a valid TriggerMesh configuration.
+const testMinimalConfigContent = `
+jenkins:
+  url: https://test-jenkins.example.com
+  token: test-token
+
+api:
+  keys:
+    - test-api-key
+`
+
 func TestLoadConfig(t *testing.T) {
 	// Create a temporary config file
 	configContent := `
@@ -82,15 +95,7 @@ api:
 
 func TestConfigDefaults(t *testing.T) {
 	// Create a minimal config file
-	configContent := `
-jenkins:
-  url: https://test-jenkins.example.com
-  token: test-token
-
-api:
-  keys:
-    - test-api-key
-`
+	configContent := testMinimalConfigContent
 
 	tmpFile, err := os.CreateTemp("", "config-test-*.yaml")
 	if err != nil {
@@ -134,15 +139,7 @@ func TestConfigEnvVars(t *testing.T) {
 	t.Setenv("TRIGGERMESH_JENKINS_URL", "https://env-jenkins.example.com")
 
 	// Create a minimal config file
-	configContent := `
-jenkins:
-  url: https://test-jenkins.example.com
-  token: test-token
-
-api:
-  keys:
-    - test-api-key
-`
+	configContent := testMinimalConfigContent
 
 	tmpFile, err := os.CreateTemp("", "config-test-*.yaml")
 	if err != nil {
@@ -324,15 +321,7 @@ func TestConfigEnvVarsAll(t *testing.T) {
 	t.Setenv("TRIGGERMESH_JENKINS_TIMEOUT", "60")
 
 	// Create a minimal config file
-	configContent := `
-jenkins:
-  url: https://test-jenkins.example.com
-  token: test-token
-
-api:
-  keys:
-    - test-api-key
-`
+	configContent := testMinimalConfigContent
 
 	tmpFile, err := os.CreateTemp("", "config-env-test-*.yaml")
 	if err != nil {
