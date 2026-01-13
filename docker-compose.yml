@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  triggermesh:
+    build: .
+    ports:
+      - "${PORT:-8080}:8080"
+    volumes:
+      - ./config.yaml:/app/config.yaml
+      - ./triggermesh.db:/app/triggermesh.db
+    environment:
+      - TRIGGERMESH_LOG_LEVEL=info
+    restart: unless-stopped

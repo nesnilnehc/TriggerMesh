@@ -1,0 +1,288 @@
+openapi: 3.0.3
+info:
+  title: TriggerMesh API
+  description: |
+    TriggerMesh is a lightweight, controllable, and auditable CI Build trigger hub service.
+    This API provides a unified interface for triggering CI builds across different CI engines.
+  version: 1.0.0
+  contact:
+    name: TriggerMesh Contributors
+    url: https://github.com/nesnilnehc/triggermesh
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:8080
+    description: Local development server
+  - url: https://api.example.com
+    description: Production server (example)
+
+tags:
+  - name: health
+    description: Health check endpoints
+  - name: jenkins
+    description: Jenkins build trigger operations
+  - name: audit
+    description: Audit log operations
+
+paths:
+  /health:
+    get:
+      tags:
+        - health
+      summary: Health check
+      description: Returns the health status of the service
+      operationId: healthCheck
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: OK
+
+  /api/v1/trigger/jenkins:
+    post:
+      tags:
+        - jenkins
+      summary: Trigger Jenkins build
+      description: Triggers a Jenkins build for the specified job with optional parameters
+      operationId: triggerJenkinsBuild
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TriggerJenkinsBuildRequest'
+            examples:
+              simple:
+                summary: Simple trigger
+                value:
+                  job: my-job
+              withParameters:
+                summary: Trigger with parameters
+                value:
+                  job: my-pipeline
+                  parameters:
+                    branch: main
+                    environment: production
+      responses:
+        '200':
+          description: Build triggered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TriggerJenkinsBuildResponse'
+              example:
+                id: "123e4567-e89b-12d3-a456-426614174000"
+                status: success
+                message: "Jenkins build triggered successfully"
+                buildUrl: "https://jenkins.example.com/job/my-job/123/"
+        '400':
+          description: Bad request (invalid parameters)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: "Job name is required"
+        '401':
+          description: Unauthorized (invalid or missing API key)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: "Unauthorized"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: "Failed to trigger Jenkins build"
+
+  /api/v1/audit:
+    get:
+      tags:
+        - audit
+      summary: Get audit logs
+      description: Retrieves audit logs with optional pagination
+      operationId: getAuditLogs
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          description: Maximum number of records to return
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 1000
+            default: 100
+        - name: offset
+          in: query
+          description: Number of records to skip
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        '200':
+          description: Audit logs retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AuditLog'
+              example:
+                - id: 1
+                  timestamp: "2026-01-13T10:00:00Z"
+                  api_key: "***"
+                  method: "POST"
+                  path: "/api/v1/trigger/jenkins"
+                  status: 200
+                  job_name: "my-job"
+                  params: '{"branch":"main"}'
+                  result: "success"
+                  error: null
+        '401':
+          description: Unauthorized (invalid or missing API key)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: "Unauthorized"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: "Failed to retrieve audit logs"
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: "API Key"
+      description: "API Key authentication. Use format: Bearer your-api-key"
+
+  schemas:
+    TriggerJenkinsBuildRequest:
+      type: object
+      required:
+        - job
+      properties:
+        job:
+          type: string
+          description: Jenkins job name
+          minLength: 1
+          maxLength: 255
+          example: my-job
+        parameters:
+          type: object
+          description: Optional build parameters
+          additionalProperties:
+            type: string
+            maxLength: 10240
+          example:
+            branch: main
+            environment: production
+
+    TriggerJenkinsBuildResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Request ID
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        status:
+          type: string
+          enum: [success, failed]
+          description: Trigger status
+          example: success
+        message:
+          type: string
+          description: Status message
+          example: "Jenkins build triggered successfully"
+        buildUrl:
+          type: string
+          format: uri
+          description: URL to the Jenkins build
+          example: "https://jenkins.example.com/job/my-job/123/"
+        buildId:
+          type: string
+          description: Jenkins build ID (if available)
+          example: "123"
+
+    AuditLog:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Audit log entry ID
+          example: 1
+        timestamp:
+          type: string
+          format: date-time
+          description: Request timestamp
+          example: "2026-01-13T10:00:00Z"
+        api_key:
+          type: string
+          description: API key used (may be masked)
+          example: "***"
+        method:
+          type: string
+          enum: [GET, POST, PUT, DELETE, PATCH]
+          description: HTTP method
+          example: "POST"
+        path:
+          type: string
+          description: Request path
+          example: "/api/v1/trigger/jenkins"
+        status:
+          type: integer
+          description: HTTP status code
+          example: 200
+        job_name:
+          type: string
+          nullable: true
+          description: Jenkins job name (if applicable)
+          example: "my-job"
+        params:
+          type: string
+          nullable: true
+          description: Request parameters as JSON string
+          example: '{"branch":"main"}'
+        result:
+          type: string
+          enum: [success, failed]
+          description: Request result
+          example: "success"
+        error:
+          type: string
+          nullable: true
+          description: Error message (if failed)
+          example: null
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+          example: "Bad request"
+

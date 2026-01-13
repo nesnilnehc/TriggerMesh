@@ -1,0 +1,45 @@
+# Binary files
+triggermesh
+main
+bin/*
+!bin/.gitkeep
+
+# Configuration files
+config.yaml
+.env
+
+# Database files
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+data/*
+!data/.gitkeep
+
+# Log files
+*.log
+
+# Go build files
+go.sum
+*.exe
+*.test
+*.out
+
+# Test coverage files
+.coverage/
+*.coverage
+coverage.html
+coverage.out
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Docker files
+.dockerignore
+
+# OS files
+.DS_Store
+Thumbs.db

@@ -1,0 +1,16 @@
+server:
+  port: 8080
+  host: "0.0.0.0"
+
+database:
+  path: ./data/triggermesh.db  # Recommended: use data/ directory for database files
+
+jenkins:
+  url: https://your-jenkins-url
+  username: your-jenkins-username  # Optional, defaults to token if not provided
+  token: your-jenkins-token
+  timeout: 30  # Request timeout in seconds (default: 30)
+
+api:
+  keys:
+    - your-api-key
