@@ -1,6 +1,8 @@
 run:
   timeout: 5m
   tests: true
+  build-tags:
+    - sqlite_omit_load_extension
 
 output:
   formats:
@@ -90,6 +92,7 @@ issues:
   exclude-files:
     - ".*\\.pb\\.go$"
     - ".*\\.gen\\.go$"
+  exclude-use-default: false
   exclude-rules:
     - path: _test\.go
       linters:
