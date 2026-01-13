@@ -37,7 +37,6 @@ linters-settings:
     locale: US
   
   revive:
-    min-confidence: 0
     rules:
       - name: exported
         severity: warning
