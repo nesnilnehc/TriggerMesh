@@ -8,6 +8,7 @@ import (
 	"triggermesh/internal/api/middleware"
 	"triggermesh/internal/config"
 	"triggermesh/internal/engine"
+	"triggermesh/internal/logger"
 )
 
 // Router represents the API router
@@ -34,7 +35,7 @@ func NewRouter(
 	// Root path handler
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
 			"message": "TriggerMesh API",
 			"version": "1.0.0",
 			"endpoints": []string{
@@ -42,13 +43,17 @@ func NewRouter(
 				"/api/v1/trigger/jenkins - Trigger Jenkins build",
 				"/api/v1/audit - Get audit logs",
 			},
-		})
+		}); err != nil {
+			logger.Error("Failed to encode response", "error", err)
+		}
 	})
 
 	// Health check
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("OK"))
+		if _, err := w.Write([]byte("OK")); err != nil {
+			logger.Error("Failed to write response", "error", err)
+		}
 	})
 
 	// Protected routes

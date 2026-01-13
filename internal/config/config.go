@@ -42,7 +42,7 @@ type APIConfig struct {
 // Load loads the configuration from the given file path
 func Load(filePath string) (*Config, error) {
 	// Read the YAML file
-	data, err := os.ReadFile(filePath)
+	data, err := os.ReadFile(filePath) //nolint:gosec // Trusted file path input
 	if err != nil {
 		return nil, err
 	}

@@ -9,6 +9,12 @@ import (
 	"triggermesh/internal/logger"
 )
 
+// ContextKey is a custom type for context keys to avoid collisions
+type ContextKey string
+
+// APIKeyContextKey is the context key for the API key
+const APIKeyContextKey ContextKey = "api_key"
+
 // AuthMiddleware is an HTTP middleware that validates API keys
 type AuthMiddleware struct {
 	apiKeys map[string]bool
@@ -69,7 +75,7 @@ func (am *AuthMiddleware) Middleware(next http.Handler) http.Handler {
 
 		// Add the API key to the request context for later use
 		ctx := r.Context()
-		ctx = context.WithValue(ctx, "api_key", apiKey)
+		ctx = context.WithValue(ctx, APIKeyContextKey, apiKey)
 		r = r.WithContext(ctx)
 
 		// Call the next handler

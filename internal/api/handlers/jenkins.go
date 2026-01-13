@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"triggermesh/internal/api/middleware"
 	"triggermesh/internal/engine"
 	"triggermesh/internal/logger"
 	"triggermesh/internal/storage"
@@ -33,7 +34,7 @@ type TriggerJenkinsBuildRequest struct {
 // TriggerJenkinsBuild handles the POST /api/v1/trigger/jenkins request
 func (h *JenkinsHandler) TriggerJenkinsBuild(w http.ResponseWriter, r *http.Request) {
 	// Get API key from context
-	apiKey, ok := r.Context().Value("api_key").(string)
+	apiKey, ok := r.Context().Value(middleware.APIKeyContextKey).(string)
 	if !ok {
 		apiKey = "unknown"
 	}
@@ -104,10 +105,14 @@ func (h *JenkinsHandler) TriggerJenkinsBuild(w http.ResponseWriter, r *http.Requ
 			Result:    "failed",
 			Error:     err.Error(),
 		}
-		storage.InsertAuditLog(auditLog)
+		if err := storage.InsertAuditLog(auditLog); err != nil {
+			logger.Error("Failed to insert audit log", "error", err)
+		}
 
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(result)
+		if err := json.NewEncoder(w).Encode(result); err != nil {
+			logger.Error("Failed to encode response", "error", err)
+		}
 		return
 	}
 
@@ -122,11 +127,15 @@ func (h *JenkinsHandler) TriggerJenkinsBuild(w http.ResponseWriter, r *http.Requ
 		Params:    marshalParams(req.Parameters),
 		Result:    "success",
 	}
-	storage.InsertAuditLog(auditLog)
+	if err := storage.InsertAuditLog(auditLog); err != nil {
+		logger.Error("Failed to insert audit log", "error", err)
+	}
 
 	// Return the result
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(result)
+	if err := json.NewEncoder(w).Encode(result); err != nil {
+		logger.Error("Failed to encode response", "error", err)
+	}
 }
 
 // marshalParams marshals parameters to a JSON string

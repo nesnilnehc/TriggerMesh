@@ -143,7 +143,10 @@ func (c *Client) doBuildRequest(buildPath string) (string, string, error) {
 	defer resp.Body.Close()
 
 	// Read response body for error messages
-	respBody, _ := io.ReadAll(resp.Body)
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to read response body: %v", err)
+	}
 
 	// Check if the response status is successful
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
@@ -198,7 +201,10 @@ func (c *Client) doParameterizedRequest(buildPath string, params map[string]stri
 	defer resp.Body.Close()
 
 	// Read response body for error messages
-	respBody, _ := io.ReadAll(resp.Body)
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to read response body: %v", err)
+	}
 
 	// Check if the response status is successful
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {

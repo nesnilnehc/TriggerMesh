@@ -34,8 +34,8 @@ api:
 	}
 	defer os.Remove(tmpFile.Name())
 
-	if _, err := tmpFile.WriteString(configContent); err != nil {
-		t.Fatalf("Failed to write config: %v", err)
+	if _, writeErr := tmpFile.WriteString(configContent); writeErr != nil {
+		t.Fatalf("Failed to write config: %v", writeErr)
 	}
 	tmpFile.Close()
 
@@ -96,8 +96,8 @@ api:
 	}
 	defer os.Remove(tmpFile.Name())
 
-	if _, err := tmpFile.WriteString(configContent); err != nil {
-		t.Fatalf("Failed to write config: %v", err)
+	if _, writeErr := tmpFile.WriteString(configContent); writeErr != nil {
+		t.Fatalf("Failed to write config: %v", writeErr)
 	}
 	tmpFile.Close()
 
@@ -150,8 +150,8 @@ api:
 	}
 	defer os.Remove(tmpFile.Name())
 
-	if _, err := tmpFile.WriteString(configContent); err != nil {
-		t.Fatalf("Failed to write config: %v", err)
+	if _, writeErr := tmpFile.WriteString(configContent); writeErr != nil {
+		t.Fatalf("Failed to write config: %v", writeErr)
 	}
 	tmpFile.Close()
 
@@ -182,9 +182,9 @@ func TestGetLogLevel(t *testing.T) {
 	validLevels := []string{"debug", "info", "warn", "error"}
 	for _, validLevel := range validLevels {
 		os.Setenv("TRIGGERMESH_LOG_LEVEL", validLevel)
-		level := config.GetLogLevel()
-		if level != validLevel {
-			t.Errorf("Expected log level %s, got %s", validLevel, level)
+		lvl := config.GetLogLevel()
+		if lvl != validLevel {
+			t.Errorf("Expected log level %s, got %s", validLevel, lvl)
 		}
 		os.Unsetenv("TRIGGERMESH_LOG_LEVEL")
 	}

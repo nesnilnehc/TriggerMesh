@@ -16,12 +16,6 @@ type jenkinsBuildResult struct {
 	URL    string `json:"url"`
 }
 
-// jenkinsJobInfo represents Jenkins job information
-type jenkinsJobInfo struct {
-	Name string `json:"name"`
-	URL  string `json:"url"`
-}
-
 // Trigger implements the CIEngine interface for Jenkins
 type Trigger struct {
 	client *Client

@@ -106,7 +106,7 @@ func GetAuditLogs(limit, offset int) ([]models.AuditLog, error) {
 		var timestampStr string
 
 		// Scan the row into the log struct
-		if err := rows.Scan(
+		if scanErr := rows.Scan(
 			&log.ID,
 			&timestampStr,
 			&log.APIKey,
@@ -117,21 +117,21 @@ func GetAuditLogs(limit, offset int) ([]models.AuditLog, error) {
 			&log.Params,
 			&log.Result,
 			&log.Error,
-		); err != nil {
-			return nil, err
+		); scanErr != nil {
+			return nil, scanErr
 		}
 
 		// Parse the timestamp string into time.Time
 		// Try multiple formats for compatibility
 		var timestamp time.Time
-		var err error
+		var parseErr error
 
 		// Try with microseconds first
-		timestamp, err = time.Parse("2006-01-02 15:04:05.000000", timestampStr)
-		if err != nil {
+		timestamp, parseErr = time.Parse("2006-01-02 15:04:05.000000", timestampStr)
+		if parseErr != nil {
 			// Try without microseconds
-			timestamp, err = time.Parse("2006-01-02 15:04:05", timestampStr)
-			if err != nil {
+			timestamp, parseErr = time.Parse("2006-01-02 15:04:05", timestampStr)
+			if parseErr != nil {
 				// If parsing fails, use current time as fallback
 				timestamp = time.Now()
 			}
