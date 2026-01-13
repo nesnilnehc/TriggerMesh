@@ -8,11 +8,6 @@ import (
 	"triggermesh/internal/logger"
 )
 
-// writeError writes a standardized error response
-func writeError(w http.ResponseWriter, status int, message string) {
-	writeErrorWithRequestID(w, nil, status, message)
-}
-
 // writeErrorWithRequestID writes a standardized error response with optional request ID
 func writeErrorWithRequestID(w http.ResponseWriter, r *http.Request, status int, message string) {
 	w.Header().Set("Content-Type", "application/json")

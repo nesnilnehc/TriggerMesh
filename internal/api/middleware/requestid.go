@@ -28,8 +28,15 @@ func GetRequestID(r *http.Request) string {
 func generateRequestID() string {
 	bytes := make([]byte, 16)
 	if _, err := crypto_rand.Read(bytes); err != nil {
+		// Log error when crypto/rand fails - this indicates a system-level issue
+		logger.Error("crypto/rand failed, using fallback request ID",
+			"error", err,
+			"fallback_reason", "system_crypto_unavailable")
+
 		// Better fallback: combine timestamp with process ID and random component for uniqueness
 		// Use nanosecond timestamp + process ID + random int for uniqueness
+		//nolint:gosec // G404: math/rand is acceptable here as fallback when crypto/rand fails
+		// We combine it with timestamp and process ID for sufficient uniqueness
 		fallbackRand := rand.New(rand.NewSource(time.Now().UnixNano()))
 		return fmt.Sprintf("req-%d-%d-%d",
 			time.Now().UnixNano(),

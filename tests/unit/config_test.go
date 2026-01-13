@@ -1,6 +1,7 @@
 package unit
 
 import (
+	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -128,11 +129,9 @@ api:
 }
 
 func TestConfigEnvVars(t *testing.T) {
-	// Set environment variables
-	os.Setenv("TRIGGERMESH_SERVER_PORT", "9090")
-	os.Setenv("TRIGGERMESH_JENKINS_URL", "https://env-jenkins.example.com")
-	defer os.Unsetenv("TRIGGERMESH_SERVER_PORT")
-	defer os.Unsetenv("TRIGGERMESH_JENKINS_URL")
+	// Set environment variables (t.Setenv automatically cleans up after test)
+	t.Setenv("TRIGGERMESH_SERVER_PORT", "9090")
+	t.Setenv("TRIGGERMESH_JENKINS_URL", "https://env-jenkins.example.com")
 
 	// Create a minimal config file
 	configContent := `
@@ -172,8 +171,8 @@ api:
 }
 
 func TestGetLogLevel(t *testing.T) {
-	// Test default log level
-	os.Unsetenv("TRIGGERMESH_LOG_LEVEL")
+	// Test default log level (unset env var)
+	t.Setenv("TRIGGERMESH_LOG_LEVEL", "")
 	level := config.GetLogLevel()
 	if level != "info" {
 		t.Errorf("Expected default log level info, got %s", level)
@@ -182,21 +181,19 @@ func TestGetLogLevel(t *testing.T) {
 	// Test valid log levels
 	validLevels := []string{"debug", "info", "warn", "error"}
 	for _, validLevel := range validLevels {
-		os.Setenv("TRIGGERMESH_LOG_LEVEL", validLevel)
+		t.Setenv("TRIGGERMESH_LOG_LEVEL", validLevel)
 		lvl := config.GetLogLevel()
 		if lvl != validLevel {
 			t.Errorf("Expected log level %s, got %s", validLevel, lvl)
 		}
-		os.Unsetenv("TRIGGERMESH_LOG_LEVEL")
 	}
 
 	// Test invalid log level (should default to info)
-	os.Setenv("TRIGGERMESH_LOG_LEVEL", "invalid")
+	t.Setenv("TRIGGERMESH_LOG_LEVEL", "invalid")
 	level = config.GetLogLevel()
 	if level != "info" {
 		t.Errorf("Expected log level info for invalid value, got %s", level)
 	}
-	os.Unsetenv("TRIGGERMESH_LOG_LEVEL")
 }
 
 func TestConfigValidation(t *testing.T) {
@@ -313,5 +310,315 @@ api:
 				}
 			}
 		})
+	}
+}
+
+func TestConfigEnvVarsAll(t *testing.T) {
+	// Test all environment variables (t.Setenv automatically cleans up after test)
+	t.Setenv("TRIGGERMESH_SERVER_PORT", "9090")
+	t.Setenv("TRIGGERMESH_SERVER_HOST", "127.0.0.1")
+	t.Setenv("TRIGGERMESH_DATABASE_PATH", "/tmp/test.db")
+	t.Setenv("TRIGGERMESH_JENKINS_URL", "https://env-jenkins.example.com")
+	t.Setenv("TRIGGERMESH_JENKINS_USERNAME", "env-user")
+	t.Setenv("TRIGGERMESH_JENKINS_TOKEN", "env-token")
+	t.Setenv("TRIGGERMESH_JENKINS_TIMEOUT", "60")
+
+	// Create a minimal config file
+	configContent := `
+jenkins:
+  url: https://test-jenkins.example.com
+  token: test-token
+
+api:
+  keys:
+    - test-api-key
+`
+
+	tmpFile, err := os.CreateTemp("", "config-env-test-*.yaml")
+	if err != nil {
+		t.Fatalf("Failed to create temp file: %v", err)
+	}
+	defer os.Remove(tmpFile.Name())
+
+	if _, writeErr := tmpFile.WriteString(configContent); writeErr != nil {
+		t.Fatalf("Failed to write config: %v", writeErr)
+	}
+	tmpFile.Close()
+
+	// Load the config
+	cfg, err := config.Load(tmpFile.Name())
+	if err != nil {
+		t.Fatalf("Failed to load config: %v", err)
+	}
+
+	// Verify environment variables override config
+	if cfg.Server.Port != 9090 {
+		t.Errorf("Expected port 9090 from env var, got %d", cfg.Server.Port)
+	}
+	if cfg.Server.Host != "127.0.0.1" {
+		t.Errorf("Expected host 127.0.0.1 from env var, got %s", cfg.Server.Host)
+	}
+	if cfg.Database.Path != "/tmp/test.db" {
+		t.Errorf("Expected database path /tmp/test.db from env var, got %s", cfg.Database.Path)
+	}
+	if cfg.Jenkins.URL != "https://env-jenkins.example.com" {
+		t.Errorf("Expected Jenkins URL from env var, got %s", cfg.Jenkins.URL)
+	}
+	if cfg.Jenkins.Username != "env-user" {
+		t.Errorf("Expected Jenkins username from env var, got %s", cfg.Jenkins.Username)
+	}
+	if cfg.Jenkins.Token != "env-token" {
+		t.Errorf("Expected Jenkins token from env var, got %s", cfg.Jenkins.Token)
+	}
+	if cfg.Jenkins.Timeout != 60 {
+		t.Errorf("Expected Jenkins timeout 60 from env var, got %d", cfg.Jenkins.Timeout)
+	}
+}
+
+func TestConfigValidationMaxBodySize(t *testing.T) {
+	tests := []struct {
+		name          string
+		maxBodySize   int64
+		expectError   bool
+		errorContains string
+	}{
+		{
+			name:        "Valid max body size",
+			maxBodySize: 10 * 1024 * 1024, // 10MB
+			expectError: false,
+		},
+		{
+			name:          "Negative max body size",
+			maxBodySize:   -1,
+			expectError:   true,
+			errorContains: "invalid server.max_body_size",
+		},
+		{
+			name:          "Too large max body size",
+			maxBodySize:   200 * 1024 * 1024, // 200MB, exceeds 100MB limit
+			expectError:   true,
+			errorContains: "invalid server.max_body_size",
+		},
+		{
+			name:        "Zero max body size (valid)",
+			maxBodySize: 0,
+			expectError: false, // Will use default
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			configContent := fmt.Sprintf(`
+server:
+  max_body_size: %d
+jenkins:
+  url: https://test-jenkins.example.com
+  token: test-token
+api:
+  keys:
+    - test-api-key
+`, tt.maxBodySize)
+
+			tmpFile, err := os.CreateTemp("", "config-maxbody-test-*.yaml")
+			if err != nil {
+				t.Fatalf("Failed to create temp file: %v", err)
+			}
+			defer os.Remove(tmpFile.Name())
+
+			if _, writeErr := tmpFile.WriteString(configContent); writeErr != nil {
+				t.Fatalf("Failed to write config: %v", writeErr)
+			}
+			tmpFile.Close()
+
+			cfg, err := config.Load(tmpFile.Name())
+			if tt.expectError {
+				if err == nil {
+					t.Errorf("Expected error but got none")
+				} else if tt.errorContains != "" && !strings.Contains(err.Error(), tt.errorContains) {
+					t.Errorf("Expected error to contain %q, got %q", tt.errorContains, err.Error())
+				}
+			} else {
+				if err != nil {
+					t.Errorf("Unexpected error: %v", err)
+				}
+				if cfg != nil && tt.maxBodySize > 0 && cfg.Server.MaxBodySize != tt.maxBodySize {
+					t.Errorf("Expected max body size %d, got %d", tt.maxBodySize, cfg.Server.MaxBodySize)
+				}
+			}
+		})
+	}
+}
+
+func TestConfigValidationEmptyAPIKey(t *testing.T) {
+	configContent := `
+jenkins:
+  url: https://test-jenkins.example.com
+  token: test-token
+api:
+  keys:
+    - test-api-key
+    - ""  # Empty key should fail validation
+`
+
+	tmpFile, err := os.CreateTemp("", "config-empty-key-test-*.yaml")
+	if err != nil {
+		t.Fatalf("Failed to create temp file: %v", err)
+	}
+	defer os.Remove(tmpFile.Name())
+
+	if _, writeErr := tmpFile.WriteString(configContent); writeErr != nil {
+		t.Fatalf("Failed to write config: %v", writeErr)
+	}
+	tmpFile.Close()
+
+	_, err = config.Load(tmpFile.Name())
+	if err == nil {
+		t.Error("Expected error for empty API key, got nil")
+	} else if !strings.Contains(err.Error(), "cannot be empty") {
+		t.Errorf("Expected error about empty API key, got %q", err.Error())
+	}
+}
+
+func TestConfigDefaultsMaxBodySize(t *testing.T) {
+	// Test that max body size defaults to 1MB
+	configContent := `
+jenkins:
+  url: https://test-jenkins.example.com
+  token: test-token
+api:
+  keys:
+    - test-api-key
+`
+
+	tmpFile, err := os.CreateTemp("", "config-defaults-test-*.yaml")
+	if err != nil {
+		t.Fatalf("Failed to create temp file: %v", err)
+	}
+	defer os.Remove(tmpFile.Name())
+
+	if _, writeErr := tmpFile.WriteString(configContent); writeErr != nil {
+		t.Fatalf("Failed to write config: %v", writeErr)
+	}
+	tmpFile.Close()
+
+	cfg, err := config.Load(tmpFile.Name())
+	if err != nil {
+		t.Fatalf("Failed to load config: %v", err)
+	}
+
+	// MaxBodySize should default to 1MB (1 << 20)
+	expectedMaxBodySize := int64(1 << 20)
+	if cfg.Server.MaxBodySize != expectedMaxBodySize {
+		t.Errorf("Expected default max body size %d, got %d", expectedMaxBodySize, cfg.Server.MaxBodySize)
+	}
+}
+
+func TestConfigEnvVarsInvalidValues(t *testing.T) {
+	// Test that invalid environment variable values are ignored
+	t.Setenv("TRIGGERMESH_SERVER_PORT", "invalid-port")
+	t.Setenv("TRIGGERMESH_JENKINS_TIMEOUT", "invalid-timeout")
+
+	configContent := `
+server:
+  port: 8080
+jenkins:
+  url: https://test-jenkins.example.com
+  token: test-token
+  timeout: 30
+api:
+  keys:
+    - test-api-key
+`
+
+	tmpFile, err := os.CreateTemp("", "config-invalid-env-*.yaml")
+	if err != nil {
+		t.Fatalf("Failed to create temp file: %v", err)
+	}
+	defer os.Remove(tmpFile.Name())
+
+	if _, writeErr := tmpFile.WriteString(configContent); writeErr != nil {
+		t.Fatalf("Failed to write config: %v", writeErr)
+	}
+	tmpFile.Close()
+
+	// Should load successfully, invalid env vars should be ignored
+	cfg, err := config.Load(tmpFile.Name())
+	if err != nil {
+		t.Fatalf("Failed to load config: %v", err)
+	}
+
+	// Should use config file values, not invalid env vars
+	if cfg.Server.Port != 8080 {
+		t.Errorf("Expected port 8080 from config file (invalid env var ignored), got %d", cfg.Server.Port)
+	}
+	if cfg.Jenkins.Timeout != 30 {
+		t.Errorf("Expected timeout 30 from config file (invalid env var ignored), got %d", cfg.Jenkins.Timeout)
+	}
+}
+
+func TestConfigEnvVarsNegativeTimeout(t *testing.T) {
+	// Test that negative timeout is ignored
+	t.Setenv("TRIGGERMESH_JENKINS_TIMEOUT", "-10")
+
+	configContent := `
+jenkins:
+  url: https://test-jenkins.example.com
+  token: test-token
+  timeout: 30
+api:
+  keys:
+    - test-api-key
+`
+
+	tmpFile, err := os.CreateTemp("", "config-negative-timeout-*.yaml")
+	if err != nil {
+		t.Fatalf("Failed to create temp file: %v", err)
+	}
+	defer os.Remove(tmpFile.Name())
+
+	if _, writeErr := tmpFile.WriteString(configContent); writeErr != nil {
+		t.Fatalf("Failed to write config: %v", writeErr)
+	}
+	tmpFile.Close()
+
+	cfg, err := config.Load(tmpFile.Name())
+	if err != nil {
+		t.Fatalf("Failed to load config: %v", err)
+	}
+
+	// Negative timeout should be ignored, use config file value
+	if cfg.Jenkins.Timeout != 30 {
+		t.Errorf("Expected timeout 30 from config file (negative env var ignored), got %d", cfg.Jenkins.Timeout)
+	}
+}
+
+func TestConfigLoadFileNotFound(t *testing.T) {
+	// Test loading non-existent config file
+	// Use a path that's guaranteed not to exist
+	nonexistentPath := "/tmp/triggermesh-test-nonexistent-" + t.Name() + ".yaml"
+	_, err := config.Load(nonexistentPath)
+	if err == nil {
+		t.Error("Expected error loading non-existent config file, got nil")
+	}
+}
+
+func TestConfigLoadInvalidYAML(t *testing.T) {
+	// Test loading invalid YAML file
+	invalidYAML := `invalid: yaml: content: [`
+
+	tmpFile, err := os.CreateTemp("", "config-invalid-*.yaml")
+	if err != nil {
+		t.Fatalf("Failed to create temp file: %v", err)
+	}
+	defer os.Remove(tmpFile.Name())
+
+	if _, writeErr := tmpFile.WriteString(invalidYAML); writeErr != nil {
+		t.Fatalf("Failed to write config: %v", writeErr)
+	}
+	tmpFile.Close()
+
+	_, err = config.Load(tmpFile.Name())
+	if err == nil {
+		t.Error("Expected error loading invalid YAML, got nil")
 	}
 }

@@ -2,6 +2,7 @@ package unit
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -86,6 +87,11 @@ func TestRequestIDMiddleware(t *testing.T) {
 			requestIDHeader:   "custom-request-id",
 			shouldGenerateNew: false,
 		},
+		{
+			name:              "Empty request ID header - should generate",
+			requestIDHeader:   "   ", // Whitespace only
+			shouldGenerateNew: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -114,9 +120,134 @@ func TestRequestIDMiddleware(t *testing.T) {
 				t.Error("Response body should contain request ID")
 			}
 
-			if tt.requestIDHeader != "" && bodyID != tt.requestIDHeader {
+			if tt.requestIDHeader != "" && tt.requestIDHeader != "   " && bodyID != tt.requestIDHeader {
 				t.Errorf("Expected request ID %q, got %q", tt.requestIDHeader, bodyID)
 			}
 		})
+	}
+}
+
+func TestGetRequestID(t *testing.T) {
+	tests := []struct {
+		name      string
+		setupFunc func(*http.Request)
+		expected  string
+	}{
+		{
+			name: "Request ID in context",
+			setupFunc: func(r *http.Request) {
+				ctx := context.WithValue(r.Context(), middleware.RequestIDContextKey, "test-id-123")
+				*r = *r.WithContext(ctx)
+			},
+			expected: "test-id-123",
+		},
+		{
+			name: "No request ID in context",
+			setupFunc: func(r *http.Request) {
+				// Don't set request ID
+			},
+			expected: "",
+		},
+		{
+			name: "Wrong type in context",
+			setupFunc: func(r *http.Request) {
+				ctx := context.WithValue(r.Context(), middleware.RequestIDContextKey, 123)
+				*r = *r.WithContext(ctx)
+			},
+			expected: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest("GET", "/test", nil)
+			tt.setupFunc(req)
+
+			result := middleware.GetRequestID(req)
+			if result != tt.expected {
+				t.Errorf("Expected request ID %q, got %q", tt.expected, result)
+			}
+		})
+	}
+}
+
+func TestLimitBodySizeEdgeCases(t *testing.T) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, "Request too large", http.StatusRequestEntityTooLarge)
+			return
+		}
+		_ = body
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("OK"))
+	})
+
+	tests := []struct {
+		name           string
+		bodySize       int
+		maxSize        int64
+		expectedStatus int
+	}{
+		{
+			name:           "Body exactly at limit",
+			bodySize:       1024,
+			maxSize:        1024,
+			expectedStatus: http.StatusOK,
+		},
+		{
+			name:           "Body one byte over limit",
+			bodySize:       1025,
+			maxSize:        1024,
+			expectedStatus: http.StatusRequestEntityTooLarge,
+		},
+		{
+			name:           "Zero body size limit",
+			bodySize:       1,
+			maxSize:        0,
+			expectedStatus: http.StatusRequestEntityTooLarge,
+		},
+		{
+			name:           "Very small body with small limit",
+			bodySize:       10,
+			maxSize:        100,
+			expectedStatus: http.StatusOK,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			body := bytes.Repeat([]byte("a"), tt.bodySize)
+			req := httptest.NewRequest("POST", "/test", bytes.NewReader(body))
+			rr := httptest.NewRecorder()
+
+			middleware.LimitBodySize(tt.maxSize)(handler).ServeHTTP(rr, req)
+
+			if rr.Code != tt.expectedStatus {
+				t.Errorf("Expected status %d, got %d", tt.expectedStatus, rr.Code)
+			}
+		})
+	}
+}
+
+func TestRequestIDMiddlewareContextPropagation(t *testing.T) {
+	// Test that request ID is properly propagated through context
+	var capturedRequestID string
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		capturedRequestID = middleware.GetRequestID(r)
+		w.WriteHeader(http.StatusOK)
+	})
+
+	req := httptest.NewRequest("GET", "/test", nil)
+	rr := httptest.NewRecorder()
+
+	middleware.RequestIDMiddleware(handler).ServeHTTP(rr, req)
+
+	if capturedRequestID == "" {
+		t.Error("Request ID should be captured from context")
+	}
+
+	if rr.Header().Get("X-Request-ID") != capturedRequestID {
+		t.Error("Request ID in header should match context")
 	}
 }
