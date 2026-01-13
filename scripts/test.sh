@@ -184,7 +184,9 @@ generate_coverage() {
     COVERAGE_HTML="$COVERAGE_DIR/coverage.html"
     
     # 生成覆盖率文件
-    if go test -coverprofile="$COVERAGE_FILE" ./internal/... ./tests/... 2>&1; then
+    # 使用 -coverpkg=./... 确保统计所有包的覆盖率
+    # 使用 -race -covermode=atomic 开启竞态检测（CI标准配置）
+    if go test -race -covermode=atomic -coverpkg=./... -coverprofile="$COVERAGE_FILE" ./internal/... ./tests/... 2>&1; then
         if [ -f "$COVERAGE_FILE" ]; then
             # 显示覆盖率摘要
             COVERAGE=$(go tool cover -func="$COVERAGE_FILE" | grep total | awk '{print $3}')

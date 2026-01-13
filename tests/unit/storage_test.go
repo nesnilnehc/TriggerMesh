@@ -198,3 +198,76 @@ func TestAuditLogWithError(t *testing.T) {
 		t.Errorf("Expected status 500, got %d", logs[0].Status)
 	}
 }
+
+func TestInsertAuditLog_Error(t *testing.T) {
+	// Setup then close completely
+	tmpFile, err := os.CreateTemp("", "test-*.db")
+	if err != nil {
+		t.Fatalf("Failed to create temp file: %v", err)
+	}
+	tmpFile.Close()
+	defer os.Remove(tmpFile.Name())
+
+	if err := storage.Init(tmpFile.Name()); err != nil {
+		t.Fatalf("Failed to init storage: %v", err)
+	}
+	// Force close
+	storage.Close()
+
+	auditLog := models.AuditLog{
+		Timestamp: time.Now(),
+		APIKey:    "test-api-key",
+		Method:    "POST",
+	}
+
+	// Should fail because DB is closed (or we rely on driver behavior)
+	err = storage.InsertAuditLog(auditLog)
+	if err == nil {
+		t.Error("Expected error inserting into closed DB, got nil")
+	}
+}
+
+func TestGetAuditLogs_Error(t *testing.T) {
+	tmpFile, err := os.CreateTemp("", "test-*.db")
+	if err != nil {
+		t.Fatalf("Failed to create temp file: %v", err)
+	}
+	tmpFile.Close()
+	defer os.Remove(tmpFile.Name())
+
+	if err := storage.Init(tmpFile.Name()); err != nil {
+		t.Fatalf("Failed to init storage: %v", err)
+	}
+	storage.Close()
+
+	_, err = storage.GetAuditLogs(10, 0)
+	if err == nil {
+		t.Error("Expected error getting logs from closed DB, got nil")
+	}
+}
+
+func TestInit_Error(t *testing.T) {
+	// Test: init with a path that should fail (directory doesn't exist)
+	// SQLite driver should error if parent directory doesn't exist
+	err := storage.Init("/path/to/non/existent/directory/test.db")
+	if err == nil {
+		t.Error("Expected error initializing with non-existent directory path, got nil")
+		// Clean up if somehow succeeded
+		storage.Close()
+		os.Remove("/path/to/non/existent/directory/test.db")
+		os.RemoveAll("/path/to/non/existent/directory")
+	}
+
+	// Test: pass a directory as file path (should fail)
+	tmpDir, err := os.MkdirTemp("", "test-dir")
+	if err != nil {
+		t.Fatalf("Failed to create temp directory: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	err = storage.Init(tmpDir) // Should fail because it's a directory, not a file
+	if err == nil {
+		t.Error("Expected error initializing with directory path, got nil")
+		storage.Close()
+	}
+}
