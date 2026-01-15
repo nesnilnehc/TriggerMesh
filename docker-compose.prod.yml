@@ -1,0 +1,39 @@
+services:
+  triggermesh:
+    # 使用 GitHub Container Registry 发布的镜像（推荐用于生产环境）
+    # 镜像会在 GitHub 发布 tag 时自动构建并推送
+    # 通过环境变量 TRIGGERMESH_VERSION 指定版本，默认为 v1.0.1
+    # 拉取镜像：docker pull ghcr.io/nesnilnehc/triggermesh:${TRIGGERMESH_VERSION:-v1.0.1}
+    image: ghcr.io/nesnilnehc/triggermesh:${TRIGGERMESH_VERSION:-v1.0.1}
+
+    # 如果需要使用 latest 标签（不推荐用于生产环境）
+    # image: ghcr.io/nesnilnehc/triggermesh:latest
+
+    # 如果需要从源码构建（仅用于开发测试）
+    # build:
+    #   context: .
+    #   dockerfile: Dockerfile
+
+    ports:
+      - "${PORT:-8080}:8080"
+
+    volumes:
+      # 挂载配置文件（只读）
+      - ./config.yaml:/app/config.yaml:ro
+      # 挂载数据目录（匹配 config.yaml.example 的默认路径 ./data/triggermesh.db）
+      - ./data:/app/data
+
+    environment:
+      - TRIGGERMESH_LOG_LEVEL=${LOG_LEVEL:-info}
+
+    restart: unless-stopped
+
+    # 健康检查（可选）
+    # 注意：Alpine 镜像默认没有 wget/curl，如果需要健康检查，需要在 Dockerfile 中安装
+    # 或者使用外部监控工具（如 Prometheus、监控系统等）
+    # healthcheck:
+    #   test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/health"] || exit 1
+    #   interval: 30s
+    #   timeout: 10s
+    #   retries: 3
+    #   start_period: 40s

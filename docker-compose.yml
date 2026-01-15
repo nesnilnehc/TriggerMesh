@@ -1,13 +1,15 @@
-version: '3.8'
-
 services:
   triggermesh:
+    # 从当前目录构建镜像（用于开发测试）
+    # 生产环境请使用 docker-compose.prod.yml，它使用已发布的镜像
     build: .
     ports:
       - "${PORT:-8080}:8080"
     volumes:
+      # 挂载配置文件（确保 config.yaml 文件已创建）
       - ./config.yaml:/app/config.yaml
-      - ./triggermesh.db:/app/triggermesh.db
+      # 挂载数据目录（匹配 config.yaml.example 的默认路径 ./data/triggermesh.db）
+      - ./data:/app/data
     environment:
       - TRIGGERMESH_LOG_LEVEL=info
     restart: unless-stopped

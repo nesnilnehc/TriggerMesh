@@ -1,8 +1,15 @@
 # Stage 1: Build the application
 FROM golang:1.21.13-alpine AS builder
 
+# Install CGO dependencies for go-sqlite3
+# gcc and musl-dev are required for CGO compilation
+RUN apk add --no-cache gcc musl-dev
+
 # Set GOPROXY (using default Go proxy)
 ENV GOPROXY=https://proxy.golang.org,direct
+
+# Enable CGO (required for go-sqlite3)
+ENV CGO_ENABLED=1
 
 WORKDIR /app
 
@@ -15,7 +22,7 @@ RUN timeout -s INT 60s go mod download || go mod download
 # Copy the source code
 COPY . .
 
-# Build the application
+# Build the application with CGO enabled
 RUN go build -o triggermesh ./cmd/triggermesh
 
 # Stage 2: Create the final image

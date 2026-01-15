@@ -119,6 +119,85 @@ docker-compose logs -f
 docker-compose down
 ```
 
+**服务器部署（生产环境）：**
+
+生产环境推荐使用已发布的 Docker 镜像，而不是从源码构建。镜像会在 GitHub 发布 tag 时自动构建并推送到 GitHub Container Registry。
+
+> **⚠️ 重要提示**：镜像 `v1.0.0` 存在 CGO 编译问题，运行时无法初始化数据库。请使用 `v1.0.1` 或更高版本。
+
+**方式一：使用生产环境配置（推荐）**
+
+```bash
+# 1. 下载生产环境配置文件
+# 可以从 GitHub 仓库下载 docker-compose.prod.yml 和 config.yaml.example
+# 或者克隆仓库（仅需要配置文件，不需要完整源码）
+git clone https://github.com/nesnilnehc/triggermesh.git
+cd triggermesh
+
+# 2. 创建配置文件
+cp config.yaml.example config.yaml
+# 编辑 config.yaml，填入你的配置信息（Jenkins URL、Token、API Keys 等）
+
+# 3. 创建数据目录（用于存放数据库文件）
+mkdir -p data
+
+# 4. 拉取 Docker 镜像（可选，docker-compose 会自动拉取）
+# 默认使用 v1.0.1，可通过环境变量 TRIGGERMESH_VERSION 指定其他版本
+docker pull ghcr.io/nesnilnehc/triggermesh:v1.0.1
+
+# 5. 启动服务（使用生产环境配置）
+docker-compose -f docker-compose.prod.yml up -d
+
+# 6. 查看日志确认服务正常运行
+docker-compose -f docker-compose.prod.yml logs -f
+```
+
+**更新到新版本：**
+
+```bash
+# 1. 更新 docker-compose.prod.yml 中的镜像版本，或设置环境变量
+export TRIGGERMESH_VERSION=v1.0.2  # 替换为实际的新版本号
+
+# 2. 拉取新版本镜像
+docker-compose -f docker-compose.prod.yml pull
+
+# 3. 重启服务
+docker-compose -f docker-compose.prod.yml up -d
+```
+
+**方式二：使用开发配置（仅用于开发测试）**
+
+如果你需要在服务器上从源码构建（例如需要测试最新代码），可以使用默认的 `docker-compose.yml`：
+
+```bash
+# 1. 克隆仓库
+git clone https://github.com/nesnilnehc/triggermesh.git
+cd triggermesh
+
+# 2. 创建配置文件
+cp config.yaml.example config.yaml
+# 编辑 config.yaml，填入你的配置信息
+
+# 3. 启动服务（会从源码构建镜像）
+docker-compose up -d
+
+# 4. 查看日志
+docker-compose logs -f
+```
+
+**关于 Docker 镜像：**
+
+- **镜像地址**：`ghcr.io/nesnilnehc/triggermesh`
+- **标签格式**：版本号（如 `v1.0.1`）或 `latest`
+- **拉取镜像**：`docker pull ghcr.io/nesnilnehc/triggermesh:v1.0.1`
+- **版本管理**：在 `docker-compose.prod.yml` 中通过环境变量 `TRIGGERMESH_VERSION` 指定版本，默认为 `v1.0.1`
+- **镜像认证**：如果镜像设置为私有，需要先登录：
+  ```bash
+  # 使用 GitHub 用户名和 Personal Access Token
+  echo $GITHUB_TOKEN | docker login ghcr.io -u $GITHUB_USERNAME --password-stdin
+  ```
+  大多数情况下，公开的镜像不需要认证即可拉取。
+
 **本地 Docker 测试：**
 
 ```bash
@@ -126,7 +205,9 @@ docker-compose down
 docker-compose up --build
 ```
 
-> **版本信息**：当前最新稳定版本为 [v1.0.0](https://github.com/nesnilnehc/triggermesh/releases/tag/v1.0.0)
+> **版本信息**：当前最新稳定版本为 [v1.0.1](https://github.com/nesnilnehc/triggermesh/releases/tag/v1.0.1)（或查看 [最新发布](https://github.com/nesnilnehc/triggermesh/releases/latest)）
+> 
+> **⚠️ 注意**：`v1.0.0` 版本存在 CGO 编译问题，请勿使用。
 > **关于模块路径**：本项目使用 `triggermesh` 作为模块路径，代码中的导入路径为 `triggermesh/internal/...`。由于项目依赖都是公共模块，使用方式一和方式二都无需特殊配置。
 
 ### 配置
@@ -137,7 +218,7 @@ docker-compose up --build
 server:
   port: 8080
 database:
-  path: ./triggermesh.db
+  path: ./data/triggermesh.db  # 推荐使用 data/ 目录存放数据库文件
 # CI 引擎配置
 # 目前仅支持 Jenkins。更多引擎将在未来版本中添加。
 jenkins:

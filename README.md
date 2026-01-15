@@ -119,6 +119,85 @@ docker-compose logs -f
 docker-compose down
 ```
 
+**Production Deployment:**
+
+For production environments, it's recommended to use pre-built Docker images from GitHub Container Registry instead of building from source. Images are automatically built and pushed when tags are released on GitHub.
+
+> **⚠️ Important**: Image `v1.0.0` has a CGO compilation issue and will fail to initialize the database at runtime. Please use `v1.0.1` or later versions.
+
+**Method 1: Using Production Configuration (Recommended)**
+
+```bash
+# 1. Download production configuration files
+# You can download docker-compose.prod.yml and config.yaml.example from the GitHub repo
+# Or clone the repository (only need config files, not full source code)
+git clone https://github.com/nesnilnehc/triggermesh.git
+cd triggermesh
+
+# 2. Create configuration file
+cp config.yaml.example config.yaml
+# Edit config.yaml with your settings (Jenkins URL, Token, API Keys, etc.)
+
+# 3. Create data directory (for database files)
+mkdir -p data
+
+# 4. Pull Docker image (optional, docker-compose will pull automatically)
+# Defaults to v1.0.1, can specify other version via TRIGGERMESH_VERSION env var
+docker pull ghcr.io/nesnilnehc/triggermesh:v1.0.1
+
+# 5. Start service (using production configuration)
+docker-compose -f docker-compose.prod.yml up -d
+
+# 6. View logs to confirm service is running
+docker-compose -f docker-compose.prod.yml logs -f
+```
+
+**Updating to a New Version:**
+
+```bash
+# 1. Update image version in docker-compose.prod.yml, or set environment variable
+export TRIGGERMESH_VERSION=v1.0.2  # Replace with actual new version
+
+# 2. Pull new version image
+docker-compose -f docker-compose.prod.yml pull
+
+# 3. Restart service
+docker-compose -f docker-compose.prod.yml up -d
+```
+
+**Method 2: Using Development Configuration (For Development/Testing Only)**
+
+If you need to build from source on the server (e.g., to test latest code), use the default `docker-compose.yml`:
+
+```bash
+# 1. Clone repository
+git clone https://github.com/nesnilnehc/triggermesh.git
+cd triggermesh
+
+# 2. Create configuration file
+cp config.yaml.example config.yaml
+# Edit config.yaml with your settings
+
+# 3. Start service (will build image from source)
+docker-compose up -d
+
+# 4. View logs
+docker-compose logs -f
+```
+
+**About Docker Images:**
+
+- **Image Registry**: `ghcr.io/nesnilnehc/triggermesh`
+- **Tag Format**: Version number (e.g., `v1.0.1`) or `latest`
+- **Pull Image**: `docker pull ghcr.io/nesnilnehc/triggermesh:v1.0.1`
+- **Version Management**: Specify version via `TRIGGERMESH_VERSION` environment variable in `docker-compose.prod.yml`, defaults to `v1.0.1`
+- **Image Authentication**: If the image is set to private, you need to login first:
+  ```bash
+  # Use GitHub username and Personal Access Token
+  echo $GITHUB_TOKEN | docker login ghcr.io -u $GITHUB_USERNAME --password-stdin
+  ```
+  In most cases, public images can be pulled without authentication.
+
 **Local Docker Testing:**
 
 ```bash
@@ -126,7 +205,9 @@ docker-compose down
 docker-compose up --build
 ```
 
-> **Version Information**: Current latest stable version is [v1.0.0](https://github.com/nesnilnehc/triggermesh/releases/tag/v1.0.0)
+> **Version Information**: Current latest stable version is [v1.0.1](https://github.com/nesnilnehc/triggermesh/releases/tag/v1.0.1) (or check [latest release](https://github.com/nesnilnehc/triggermesh/releases/latest))
+> 
+> **⚠️ Note**: Version `v1.0.0` has a CGO compilation issue and should not be used.
 > **About Module Path**: This project uses `triggermesh` as the module path, with import paths in code as `triggermesh/internal/...`. Since all project dependencies are public modules, both Method 1 and Method 2 require no special configuration.
 
 ### Configuration
@@ -137,7 +218,7 @@ Create a `config.yaml` file:
 server:
   port: 8080
 database:
-  path: ./triggermesh.db
+  path: ./data/triggermesh.db  # Recommended: use data/ directory for database files
 # CI Engine Configuration
 # Currently only Jenkins is supported. More engines will be added in future releases.
 jenkins:
