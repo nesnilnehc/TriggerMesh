@@ -26,7 +26,7 @@ COPY . .
 RUN go build -o triggermesh ./cmd/triggermesh
 
 # Stage 2: Create the final image
-FROM alpine:3.18
+FROM alpine:3.23
 
 WORKDIR /app
 
