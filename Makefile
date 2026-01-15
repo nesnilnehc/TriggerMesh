@@ -58,11 +58,11 @@ docker-build:
 
 # Build and push multi-platform Docker image
 docker-buildx:
-	docker buildx build --platform linux/amd64,linux/arm64 -t ghcr.io/nesnilnehc/triggermesh:latest -t ghcr.io/nesnilnehc/triggermesh:v1.0.1 --push .
+	docker buildx build --platform linux/amd64,linux/arm64 -t ghcr.io/nesnilnehc/triggermesh:latest -t ghcr.io/nesnilnehc/triggermesh:v1.0.0 --push .
 
 # Build multi-platform Docker image locally
 docker-buildx-local:
-	docker buildx build --platform linux/amd64,linux/arm64 -t triggermesh:latest -t triggermesh:v1.0.1 --load .
+	docker buildx build --platform linux/amd64,linux/arm64 -t triggermesh:latest -t triggermesh:v1.0.0 --load .
 
 # Run Docker container
 docker-run:

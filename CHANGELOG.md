@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.0] - 2026-01-12
+## [1.0.0] - 2026-01-15
 
 ### Added
 
@@ -46,6 +46,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Configuration guide
   - Development guide
 
+### Fixed
+
+- Fixed security vulnerabilities and improved code quality
+- Fixed golangci-lint errors in unit tests
+- Fixed CI workflow duplicate step and restored code quality checks
+- Fixed linter config error and unignore main package
+- Resolved typecheck error with explicit yaml import alias
+- Fixed GitHub Actions CI errors
+
+### Changed
+
+- Improved error handling and code quality
+- Enhanced CI workflow for Go builds
+- Updated Codecov action to v5 and added token support
+- Updated golangci-lint configuration
+
+### Test
+
+- Improved test coverage and fixed test isolation issues
+- Improved test reliability with mock Jenkins server and constants
+- Fixed unit test golangci-lint errors
+
+### CI/CD
+
+- Added automated release workflow for Docker image publishing
+- Enhanced CI workflow with better error handling
+
 ### Technical Details
 
 - **Language**: Golang 1.21+
@@ -78,37 +105,6 @@ None (initial version)
 
 ---
 
-## [1.0.1] - 2026-01-13
-
-### Fixed
-
-- Fixed security vulnerabilities and improved code quality
-- Fixed golangci-lint errors in unit tests
-- Fixed CI workflow duplicate step and restored code quality checks
-- Fixed linter config error and unignore main package
-- Resolved typecheck error with explicit yaml import alias
-- Fixed GitHub Actions CI errors
-
-### Changed
-
-- Improved error handling and code quality
-- Enhanced CI workflow for Go builds
-- Updated Codecov action to v5 and added token support
-- Updated golangci-lint configuration
-
-### Test
-
-- Improved test coverage and fixed test isolation issues
-- Improved test reliability with mock Jenkins server and constants
-- Fixed unit test golangci-lint errors
-
-### CI/CD
-
-- Added automated release workflow for Docker image publishing
-- Enhanced CI workflow with better error handling
-
----
-
 ## [Unreleased]
 
 ### Planned
@@ -119,5 +115,4 @@ None (initial version)
 - Log rotation functionality
 - Monitoring and alerting mechanisms
 
-[1.0.1]: https://github.com/nesnilnehc/triggermesh/releases/tag/v1.0.1
 [1.0.0]: https://github.com/nesnilnehc/triggermesh/releases/tag/v1.0.0
