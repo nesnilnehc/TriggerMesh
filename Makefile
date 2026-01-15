@@ -56,6 +56,14 @@ clean:
 docker-build:
 	docker build -t triggermesh .
 
+# Build and push multi-platform Docker image
+docker-buildx:
+	docker buildx build --platform linux/amd64,linux/arm64 -t ghcr.io/nesnilnehc/triggermesh:latest -t ghcr.io/nesnilnehc/triggermesh:v1.0.1 --push .
+
+# Build multi-platform Docker image locally
+docker-buildx-local:
+	docker buildx build --platform linux/amd64,linux/arm64 -t triggermesh:latest -t triggermesh:v1.0.1 --load .
+
 # Run Docker container
 docker-run:
 	docker-compose up -d
@@ -75,6 +83,8 @@ help:
 	@echo "  vet            - Vet code"
 	@echo "  clean          - Clean up"
 	@echo "  docker-build   - Build Docker image"
+	@echo "  docker-buildx  - Build and push multi-platform Docker image"
+	@echo "  docker-buildx-local - Build multi-platform Docker image locally"
 	@echo "  docker-run     - Run Docker container"
 	@echo "  docker-stop    - Stop Docker container"
 	@echo "  help           - Show this help"
