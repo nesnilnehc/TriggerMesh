@@ -1,5 +1,5 @@
 # Stage 1: Build the application
-FROM golang:1.21.13-alpine AS builder
+FROM golang:1.25.6-alpine AS builder
 
 # Install CGO dependencies for go-sqlite3
 # gcc and musl-dev are required for CGO compilation
