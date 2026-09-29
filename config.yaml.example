@@ -6,20 +6,20 @@ database:
   path: ./data/triggermesh.db  # Recommended: use data/ directory for database files
 
 jenkins:
-  url: https://your-jenkins-url
-  username: your-jenkins-username  # Optional, defaults to token if not provided
-  token: your-jenkins-token
-  timeout: 30  # Request timeout in seconds (default: 30)
+  default: primary
+  instances:
+    primary:
+      url: https://your-primary-jenkins-url
+      username: your-primary-jenkins-username
+      token: your-primary-jenkins-token
+      timeout: 30  # Optional; defaults to 30 seconds
+    secondary:
+      url: https://your-secondary-jenkins-url
+      username: your-secondary-jenkins-username
+      token: your-secondary-jenkins-token
 
-# Optional: route selected jobs to another Jenkins instance. Other jobs keep
-# using the default "jenkins" configuration above.
-# jenkins_targets:
-#   ddi:
-#     url: http://your-ddi-jenkins-url
-#     username: your-ddi-jenkins-username
-#     token: your-ddi-jenkins-token
-# job_targets:
-#   publish-recloud-ddi-artifacts: ddi
+# A request may select an instance by name. Otherwise TriggerMesh checks all
+# instances and triggers only if exactly one contains the requested job.
 
 api:
   keys:

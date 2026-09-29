@@ -15,6 +15,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Log rotation functionality
 - Monitoring and alerting mechanisms
 
+## [2.0.0] - 2026-09-29
+
+### Added
+
+- Support multiple named Jenkins instances in `jenkins.instances` and an explicit `jenkins` field in build requests.
+- Discover jobs across instances when a request omits `jenkins`; reject missing, duplicate, or incomplete lookup results before triggering.
+
+### Changed
+
+- Require `jenkins.default` and `jenkins.instances`; remove the old single-instance format and the `jenkins_targets` and `job_targets` route tables.
+- Include the selected instance in build responses and qualify non-default build IDs.
+
 ## [1.0.2] - 2026-09-29
 
 ### Added
@@ -23,7 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Document per-job Jenkins configuration and require the target instance's own API credentials for DDI builds.
+- Document per-job Jenkins configuration and require each instance's own API credentials.
 - Publish version tags through one workflow with a multi-architecture Docker image.
 
 ## [1.0.0] - 2026-01-15
@@ -126,3 +138,4 @@ None (initial version)
 
 [1.0.0]: https://github.com/nesnilnehc/triggermesh/releases/tag/v1.0.0
 [1.0.2]: https://github.com/nesnilnehc/triggermesh/releases/tag/v1.0.2
+[2.0.0]: https://github.com/nesnilnehc/triggermesh/releases/tag/v2.0.0

@@ -5,6 +5,7 @@ type BuildResult struct {
 	Success  bool   `json:"success"`
 	BuildID  string `json:"build_id,omitempty"`
 	BuildURL string `json:"build_url,omitempty"`
+	Jenkins  string `json:"jenkins,omitempty"`
 	Message  string `json:"message"`
 }
 

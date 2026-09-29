@@ -43,6 +43,42 @@ func NewClient(cfg config.JenkinsConfig) *Client {
 	}
 }
 
+// JobExists checks a job without triggering it. A failed lookup must not be
+// treated as absence, because that could select the wrong Jenkins instance.
+func (c *Client) JobExists(ctx context.Context, jobName string) (bool, error) {
+	path := jobPath(jobName) + "/api/json?tree=name"
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.url+path, nil)
+	if err != nil {
+		return false, err
+	}
+	req.SetBasicAuth(c.username, c.token)
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return false, err
+	}
+	defer resp.Body.Close()
+	if resp.Request.URL.Host != req.URL.Host || resp.Request.URL.Path != req.URL.Path {
+		return false, fmt.Errorf("Jenkins job lookup redirected unexpectedly")
+	}
+	switch resp.StatusCode {
+	case http.StatusOK:
+		return true, nil
+	case http.StatusNotFound:
+		return false, nil
+	default:
+		return false, formatJenkinsError(resp.StatusCode, "")
+	}
+}
+
+// jobPath converts a slash-separated folder/job name to Jenkins' nested path.
+func jobPath(jobName string) string {
+	parts := strings.Split(jobName, "/")
+	for i, part := range parts {
+		parts[i] = "job/" + url.PathEscape(part)
+	}
+	return "/" + strings.Join(parts, "/")
+}
+
 // doRequest sends an HTTP request to the Jenkins API
 func (c *Client) doRequest(ctx context.Context, method, path string, body interface{}) ([]byte, error) {
 	// Build the full URL
@@ -291,14 +327,24 @@ func (c *Client) extractBuildInfo(location, buildPath string) (string, string) {
 		pathPart = location
 	}
 
-	// Extract job name and build number from path
-	// Format: /job/jobName/buildNumber/
+	// Extract job name and build number from a job or nested folder path.
 	parts := strings.Split(strings.Trim(pathPart, "/"), "/")
-	if len(parts) >= 3 && parts[0] == "job" {
-		jobName := parts[1]
-		buildNumber := parts[2]
+	if len(parts) >= 3 && len(parts)%2 == 1 && parts[0] == "job" {
+		jobParts := make([]string, 0, len(parts)/2)
+		for i := 0; i < len(parts)-1; i += 2 {
+			if parts[i] != "job" {
+				return "", ""
+			}
+			name, err := url.PathUnescape(parts[i+1])
+			if err != nil {
+				return "", ""
+			}
+			jobParts = append(jobParts, name)
+		}
+		jobName := strings.Join(jobParts, "/")
+		buildNumber := parts[len(parts)-1]
 		buildID := jobName + "/" + buildNumber
-		buildURL := fmt.Sprintf("%s/job/%s/%s/", c.url, jobName, buildNumber)
+		buildURL := fmt.Sprintf("%s%s/%s/", c.url, jobPath(jobName), buildNumber)
 		return buildID, buildURL
 	}
 

@@ -23,6 +23,32 @@ type MockCIEngine struct {
 	GetBuildStatusFunc func(buildID string) (*engine.BuildResult, error)
 }
 
+type routedMockCIEngine struct {
+	MockCIEngine
+	selected string
+}
+
+func (m *routedMockCIEngine) TriggerBuildOn(name, job string, _ map[string]string) (*engine.BuildResult, error) {
+	m.selected = name
+	return &engine.BuildResult{Success: true, Jenkins: name, Message: "triggered " + job}, nil
+}
+
+func TestTriggerJenkinsBuildSelectsNamedInstance(t *testing.T) {
+	dbPath := t.TempDir() + "/audit.db"
+	if err := storage.Init(dbPath); err != nil {
+		t.Fatal(err)
+	}
+	defer storage.Close()
+	engine := &routedMockCIEngine{}
+	handler := handlers.NewJenkinsHandler(engine)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/trigger/jenkins", strings.NewReader(`{"job":"example-build-job","jenkins":"secondary"}`))
+	recorder := httptest.NewRecorder()
+	handler.TriggerJenkinsBuild(recorder, req)
+	if recorder.Code != http.StatusOK || engine.selected != "secondary" {
+		t.Fatalf("status=%d selected=%q body=%s", recorder.Code, engine.selected, recorder.Body.String())
+	}
+}
+
 func (m *MockCIEngine) TriggerBuild(jobName string, params map[string]string) (*engine.BuildResult, error) {
 	if m.TriggerBuildFunc != nil {
 		return m.TriggerBuildFunc(jobName, params)

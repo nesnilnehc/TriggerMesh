@@ -30,6 +30,7 @@ func NewJenkinsHandler(jenkinsEngine engine.CIEngine) *JenkinsHandler {
 // TriggerJenkinsBuildRequest represents the request body for triggering a Jenkins build
 type TriggerJenkinsBuildRequest struct {
 	Job        string            `json:"job"`
+	Jenkins    string            `json:"jenkins,omitempty"`
 	Parameters map[string]string `json:"parameters"`
 }
 
@@ -131,9 +132,21 @@ func (h *JenkinsHandler) TriggerJenkinsBuild(w http.ResponseWriter, r *http.Requ
 	}
 
 	// Trigger the build
-	result, err := h.jenkinsEngine.TriggerBuild(req.Job, req.Parameters)
+	var result *engine.BuildResult
+	var err error
+	if routed, ok := h.jenkinsEngine.(interface {
+		TriggerBuildOn(string, string, map[string]string) (*engine.BuildResult, error)
+	}); ok {
+		result, err = routed.TriggerBuildOn(req.Jenkins, req.Job, req.Parameters)
+	} else {
+		result, err = h.jenkinsEngine.TriggerBuild(req.Job, req.Parameters)
+	}
 	if err != nil {
 		logger.Error("Failed to trigger Jenkins build", "error", err, "job", req.Job, "request_id", requestID)
+		status := http.StatusInternalServerError
+		if routedErr, ok := err.(interface{ StatusCode() int }); ok {
+			status = routedErr.StatusCode()
+		}
 
 		// Log the failure to audit logs
 		auditLog := models.AuditLog{
@@ -141,7 +154,7 @@ func (h *JenkinsHandler) TriggerJenkinsBuild(w http.ResponseWriter, r *http.Requ
 			APIKey:    apiKey,
 			Method:    r.Method,
 			Path:      r.URL.Path,
-			Status:    http.StatusInternalServerError,
+			Status:    status,
 			JobName:   req.Job,
 			Params:    marshalParams(req.Parameters),
 			Result:    "failed",
@@ -151,7 +164,7 @@ func (h *JenkinsHandler) TriggerJenkinsBuild(w http.ResponseWriter, r *http.Requ
 			logger.Error("Failed to insert audit log", "error", err)
 		}
 
-		w.WriteHeader(http.StatusInternalServerError)
+		w.WriteHeader(status)
 		if err := json.NewEncoder(w).Encode(result); err != nil {
 			logger.Error("Failed to encode response", "error", err)
 		}

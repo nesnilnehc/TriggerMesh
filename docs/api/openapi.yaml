@@ -4,7 +4,7 @@ info:
   description: |
     TriggerMesh is a lightweight, controllable, and auditable CI Build trigger hub service.
     This API provides a unified interface for triggering CI builds across different CI engines.
-  version: 1.0.0
+  version: 2.0.0
   contact:
     name: TriggerMesh Contributors
     url: https://github.com/nesnilnehc/triggermesh
@@ -48,7 +48,7 @@ paths:
       tags:
         - jenkins
       summary: Trigger Jenkins build
-      description: Triggers a Jenkins build for the specified job with optional parameters
+      description: Selects an explicit Jenkins instance, a configured job route, or a unique job match across all instances, then triggers a build
       operationId: triggerJenkinsBuild
       security:
         - BearerAuth: []
@@ -70,6 +70,11 @@ paths:
                   parameters:
                     branch: main
                     environment: production
+              selectedInstance:
+                summary: Trigger on a named Jenkins instance
+                value:
+                  job: my-pipeline
+                  jenkins: secondary
       responses:
         '200':
           description: Build triggered successfully
@@ -78,10 +83,11 @@ paths:
               schema:
                 $ref: '#/components/schemas/TriggerJenkinsBuildResponse'
               example:
-                id: "123e4567-e89b-12d3-a456-426614174000"
-                status: success
-                message: "Jenkins build triggered successfully"
-                buildUrl: "https://jenkins.example.com/job/my-job/123/"
+                success: true
+                message: "Successfully triggered Jenkins build for job my-job"
+                jenkins: secondary
+                build_id: "secondary:my-job/123"
+                build_url: "https://jenkins.example.com/job/my-job/123/"
         '400':
           description: Bad request (invalid parameters)
           content:
@@ -98,6 +104,12 @@ paths:
                 $ref: '#/components/schemas/Error'
               example:
                 error: "Unauthorized"
+        '404':
+          description: Job not found on any configured Jenkins instance
+        '409':
+          description: Job exists on multiple Jenkins instances; specify jenkins
+        '503':
+          description: At least one Jenkins instance could not be queried
         '500':
           description: Internal server error
           content:
@@ -191,6 +203,10 @@ components:
           minLength: 1
           maxLength: 255
           example: my-job
+        jenkins:
+          type: string
+          description: Optional configured instance name; "default" selects the top-level jenkins configuration
+          example: secondary
         parameters:
           type: object
           description: Optional build parameters
@@ -204,29 +220,26 @@ components:
     TriggerJenkinsBuildResponse:
       type: object
       properties:
-        id:
-          type: string
-          format: uuid
-          description: Request ID
-          example: "123e4567-e89b-12d3-a456-426614174000"
-        status:
-          type: string
-          enum: [success, failed]
-          description: Trigger status
-          example: success
+        success:
+          type: boolean
+          example: true
         message:
           type: string
           description: Status message
-          example: "Jenkins build triggered successfully"
-        buildUrl:
+          example: "Successfully triggered Jenkins build for job my-job"
+        jenkins:
+          type: string
+          description: Selected Jenkins instance
+          example: secondary
+        build_url:
           type: string
           format: uri
           description: URL to the Jenkins build
           example: "https://jenkins.example.com/job/my-job/123/"
-        buildId:
+        build_id:
           type: string
-          description: Jenkins build ID (if available)
-          example: "123"
+          description: Build ID, qualified with the instance name for non-default Jenkins
+          example: "secondary:my-job/123"
 
     AuditLog:
       type: object
@@ -285,4 +298,3 @@ components:
           type: string
           description: Error message
           example: "Bad request"
-

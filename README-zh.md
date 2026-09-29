@@ -142,8 +142,8 @@ cp config.yaml.example config.yaml
 mkdir -p data
 
 # 4. 拉取 Docker 镜像（可选，docker-compose 会自动拉取）
-# 默认使用 v1.0.2，可通过环境变量 TRIGGERMESH_VERSION 指定其他版本
-docker pull ghcr.io/nesnilnehc/triggermesh:v1.0.2
+# 默认使用 v2.0.0，可通过环境变量 TRIGGERMESH_VERSION 指定其他版本
+docker pull ghcr.io/nesnilnehc/triggermesh:v2.0.0
 
 # 5. 启动服务（使用生产环境配置）
 docker-compose -f docker-compose.prod.yml up -d
@@ -156,7 +156,7 @@ docker-compose -f docker-compose.prod.yml logs -f
 
 ```bash
 # 1. 更新 docker-compose.prod.yml 中的镜像版本，或设置环境变量
-export TRIGGERMESH_VERSION=v1.0.2  # 替换为实际的新版本号
+export TRIGGERMESH_VERSION=v2.0.0  # 替换为实际的新版本号
 
 # 2. 拉取新版本镜像
 docker-compose -f docker-compose.prod.yml pull
@@ -189,8 +189,8 @@ docker-compose logs -f
 
 - **镜像地址**：`ghcr.io/nesnilnehc/triggermesh`
 - **标签格式**：版本号（如 `v1.0.1`）或 `latest`
-- **拉取镜像**：`docker pull ghcr.io/nesnilnehc/triggermesh:v1.0.2`
-- **版本管理**：在 `docker-compose.prod.yml` 中通过环境变量 `TRIGGERMESH_VERSION` 指定版本，默认为 `v1.0.2`
+- **拉取镜像**：`docker pull ghcr.io/nesnilnehc/triggermesh:v2.0.0`
+- **版本管理**：在 `docker-compose.prod.yml` 中通过环境变量 `TRIGGERMESH_VERSION` 指定版本，默认为 `v2.0.0`
 - **镜像认证**：如果镜像设置为私有，需要先登录：
   ```bash
   # 使用 GitHub 用户名和 Personal Access Token
@@ -205,7 +205,7 @@ docker-compose logs -f
 docker-compose up --build
 ```
 
-> **版本信息**：当前最新稳定版本为 [v1.0.2](https://github.com/nesnilnehc/triggermesh/releases/tag/v1.0.2)（或查看 [最新发布](https://github.com/nesnilnehc/triggermesh/releases/latest)）
+> **版本信息**：当前最新稳定版本为 [v2.0.0](https://github.com/nesnilnehc/triggermesh/releases/tag/v2.0.0)（或查看 [最新发布](https://github.com/nesnilnehc/triggermesh/releases/latest)）
 > 
 > **⚠️ 注意**：`v1.0.0` 版本存在 CGO 编译问题，请勿使用。
 > **关于模块路径**：本项目使用 `triggermesh` 作为模块路径，代码中的导入路径为 `triggermesh/internal/...`。由于项目依赖都是公共模块，使用方式一和方式二都无需特殊配置。
@@ -222,16 +222,16 @@ database:
 # CI 引擎配置
 # 目前仅支持 Jenkins。更多引擎将在未来版本中添加。
 jenkins:
-  url: https://your-jenkins-url
-  token: your-jenkins-token
-# 可选：按任务路由到另一台 Jenkins；未列出的任务仍使用上方默认实例。
-jenkins_targets:
-  ddi:
-    url: http://your-ddi-jenkins-url
-    username: your-ddi-jenkins-username
-    token: your-ddi-jenkins-token
-job_targets:
-  publish-recloud-ddi-artifacts: ddi
+  default: primary
+  instances:
+    primary:
+      url: https://your-primary-jenkins-url
+      username: your-primary-jenkins-username
+      token: your-primary-jenkins-token
+    secondary:
+      url: https://your-secondary-jenkins-url
+      username: your-secondary-jenkins-username
+      token: your-secondary-jenkins-token
 api:
   keys:
     - your-api-key
@@ -258,12 +258,15 @@ Authorization: Bearer your-api-key
 
 {
   "job": "your-job-name",
+  "jenkins": "secondary",
   "parameters": {
     "param1": "value1",
     "param2": "value2"
   }
 }
 ```
+
+`jenkins` 可省略，或设为 `jenkins.instances` 中的名称。指定时直接使用该实例；省略时在所有实例中查找任务，唯一匹配才触发。未找到返回 404、多个实例重名返回 409、任一实例查询失败返回 503；这三种情况都不会触发构建。只有一个实例时直接触发。非默认实例返回的 `build_id` 带实例名前缀，如 `secondary:my-job/26`。
 
 ### 响应示例
 
@@ -299,12 +302,10 @@ Authorization: Bearer your-api-key
 
 | 配置项        | 类型   | 默认值 | 说明              |
 |-------------|--------|--------|-------------------|
-| jenkins.url   | string | -      | Jenkins 服务器地址 |
-| jenkins.token | string | -      | Jenkins API Token |
-| jenkins_targets | map | - | 额外的 Jenkins 实例，每个实例使用独立 URL 和凭据 |
-| job_targets | map | - | 精确任务名到 `jenkins_targets` 名称的映射；其他任务使用默认实例 |
+| jenkins.default | string | - | 默认实例名称，须存在于 `instances` 中 |
+| jenkins.instances | map | - | Jenkins 实例及各自的 URL、用户名、API Token 和超时设置 |
 
-更新生产配置并部署支持此配置的新版服务后，先用目标实例的 API 凭据只读查询 `/job/publish-recloud-ddi-artifacts/api/json`，确认返回 200 且任务名正确，再发起一次构建。不要直接把默认 `jenkins.url` 改为 DDI 实例，否则现有任务会转发到错误的 Jenkins。
+部署前，先用每个实例的 API 凭据只读查询目标任务，确认连接和权限。旧的 `jenkins.url/token` 配置需要迁移到 `jenkins.instances`。
 
 ### API 配置
 

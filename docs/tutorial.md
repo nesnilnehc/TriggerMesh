@@ -115,8 +115,11 @@ database:
   path: ./triggermesh.db
 
 jenkins:
-  url: https://your-jenkins-url
-  token: your-jenkins-token
+  default: primary
+  instances:
+    primary:
+      url: https://your-jenkins-url
+      token: your-jenkins-token
 
 api:
   keys:
@@ -153,11 +156,11 @@ api:
 
 ### 3. 环境变量覆盖
 
-所有配置项都可以通过环境变量覆盖，格式为 `TRIGGERMESH_<SECTION>_<KEY>`，例如：
+服务端端口、数据库路径和日志级别支持环境变量覆盖，例如：
 
 ```bash
 export TRIGGERMESH_SERVER_PORT=9090
-export TRIGGERMESH_JENKINS_TOKEN=secret-token
+export TRIGGERMESH_DATABASE_PATH=./data/triggermesh.db
 export TRIGGERMESH_LOG_LEVEL=debug
 ```
 
@@ -290,6 +293,7 @@ POST /api/v1/trigger/jenkins
 ```json
 {
   "job": "string",
+  "jenkins": "secondary",
   "parameters": {"key": "value"}
 }
 ```
@@ -301,6 +305,7 @@ POST /api/v1/trigger/jenkins
   "success": true,
   "build_id": "string",
   "build_url": "string",
+  "jenkins": "secondary",
   "message": "string"
 }
 ```

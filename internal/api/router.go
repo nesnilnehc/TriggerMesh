@@ -41,7 +41,7 @@ func NewRouter(
 		w.Header().Set("Content-Type", "application/json")
 		if err := json.NewEncoder(w).Encode(map[string]interface{}{
 			"message": "TriggerMesh API",
-			"version": "1.0.0",
+			"version": "2.0.0",
 			"endpoints": []string{
 				"/health - Health check",
 				"/api/v1/trigger/jenkins - Trigger Jenkins build",

@@ -142,8 +142,8 @@ cp config.yaml.example config.yaml
 mkdir -p data
 
 # 4. Pull Docker image (optional, docker-compose will pull automatically)
-# Defaults to v1.0.2, can specify other version via TRIGGERMESH_VERSION env var
-docker pull ghcr.io/nesnilnehc/triggermesh:v1.0.2
+# Defaults to v2.0.0, can specify other version via TRIGGERMESH_VERSION env var
+docker pull ghcr.io/nesnilnehc/triggermesh:v2.0.0
 
 # 5. Start service (using production configuration)
 docker-compose -f docker-compose.prod.yml up -d
@@ -156,7 +156,7 @@ docker-compose -f docker-compose.prod.yml logs -f
 
 ```bash
 # 1. Update image version in docker-compose.prod.yml, or set environment variable
-export TRIGGERMESH_VERSION=v1.0.2  # Replace with actual new version
+export TRIGGERMESH_VERSION=v2.0.0  # Replace with actual new version
 
 # 2. Pull new version image
 docker-compose -f docker-compose.prod.yml pull
@@ -189,8 +189,8 @@ docker-compose logs -f
 
 - **Image Registry**: `ghcr.io/nesnilnehc/triggermesh`
 - **Tag Format**: Version number (e.g., `v1.0.1`) or `latest`
-- **Pull Image**: `docker pull ghcr.io/nesnilnehc/triggermesh:v1.0.2`
-- **Version Management**: Specify version via `TRIGGERMESH_VERSION` environment variable in `docker-compose.prod.yml`, defaults to `v1.0.2`
+- **Pull Image**: `docker pull ghcr.io/nesnilnehc/triggermesh:v2.0.0`
+- **Version Management**: Specify version via `TRIGGERMESH_VERSION` environment variable in `docker-compose.prod.yml`, defaults to `v2.0.0`
 - **Image Authentication**: If the image is set to private, you need to login first:
   ```bash
   # Use GitHub username and Personal Access Token
@@ -205,7 +205,7 @@ docker-compose logs -f
 docker-compose up --build
 ```
 
-> **Version Information**: Current latest stable version is [v1.0.2](https://github.com/nesnilnehc/triggermesh/releases/tag/v1.0.2) (or check [latest release](https://github.com/nesnilnehc/triggermesh/releases/latest))
+> **Version Information**: Current latest stable version is [v2.0.0](https://github.com/nesnilnehc/triggermesh/releases/tag/v2.0.0) (or check [latest release](https://github.com/nesnilnehc/triggermesh/releases/latest))
 > 
 > **⚠️ Note**: Version `v1.0.0` has a CGO compilation issue and should not be used.
 > **About Module Path**: This project uses `triggermesh` as the module path, with import paths in code as `triggermesh/internal/...`. Since all project dependencies are public modules, both Method 1 and Method 2 require no special configuration.
@@ -222,16 +222,16 @@ database:
 # CI Engine Configuration
 # Currently only Jenkins is supported. More engines will be added in future releases.
 jenkins:
-  url: https://your-jenkins-url
-  token: your-jenkins-token
-# Optional: route selected jobs to another Jenkins instance.
-jenkins_targets:
-  ddi:
-    url: http://your-ddi-jenkins-url
-    username: your-ddi-jenkins-username
-    token: your-ddi-jenkins-token
-job_targets:
-  publish-recloud-ddi-artifacts: ddi
+  default: primary
+  instances:
+    primary:
+      url: https://your-primary-jenkins-url
+      username: your-primary-jenkins-username
+      token: your-primary-jenkins-token
+    secondary:
+      url: https://your-secondary-jenkins-url
+      username: your-secondary-jenkins-username
+      token: your-secondary-jenkins-token
 api:
   keys:
     - your-api-key
@@ -258,12 +258,15 @@ Authorization: Bearer your-api-key
 
 {
   "job": "your-job-name",
+  "jenkins": "secondary",
   "parameters": {
     "param1": "value1",
     "param2": "value2"
   }
 }
 ```
+
+`jenkins` may be omitted or set to a name in `jenkins.instances`. An explicit name selects that instance; otherwise, TriggerMesh discovers a unique job across all instances. Discovery returns 404 for no match, 409 for multiple matches, and 503 if any lookup fails; no build is triggered in those cases. A single instance triggers directly. Build IDs from non-default instances are qualified, for example `secondary:my-job/26`.
 
 ### Response Example
 
@@ -299,12 +302,10 @@ Currently, only Jenkins engine is supported. Configuration for other CI engines 
 
 | Configuration   | Type   | Default | Description            |
 |-----------------|--------|---------|------------------------|
-| jenkins.url     | string | -       | Jenkins server URL     |
-| jenkins.token   | string | -       | Jenkins API Token      |
-| jenkins_targets | map | - | Additional Jenkins instances with separate URLs and credentials |
-| job_targets | map | - | Exact job-name routes to `jenkins_targets`; unmapped jobs use the default instance |
+| jenkins.default | string | - | Name of the default instance; must exist in `instances` |
+| jenkins.instances | map | - | Named Jenkins instances with their own URL, username, API token, and timeout |
 
-After deploying a version that supports this configuration, verify the target credentials with a read-only GET to `/job/publish-recloud-ddi-artifacts/api/json` before triggering a build. Do not replace the default `jenkins.url` with the DDI instance; existing jobs would then use the wrong Jenkins server.
+Before deployment, verify each instance's credentials with a read-only job lookup. Migrate the old `jenkins.url/token` configuration to `jenkins.instances`.
 
 ### API Configuration
 

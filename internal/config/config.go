@@ -1,9 +1,11 @@
 package config
 
 import (
+	"bytes"
 	"fmt"
 	"net/url"
 	"os"
+	"regexp"
 	"strconv"
 
 	yaml "gopkg.in/yaml.v3"
@@ -11,12 +13,10 @@ import (
 
 // Config represents the application configuration
 type Config struct {
-	Server         ServerConfig             `yaml:"server"`
-	Database       DatabaseConfig           `yaml:"database"`
-	Jenkins        JenkinsConfig            `yaml:"jenkins"`
-	JenkinsTargets map[string]JenkinsConfig `yaml:"jenkins_targets"`
-	JobTargets     map[string]string        `yaml:"job_targets"`
-	API            APIConfig                `yaml:"api"`
+	Server   ServerConfig   `yaml:"server"`
+	Database DatabaseConfig `yaml:"database"`
+	Jenkins  JenkinsConfig  `yaml:"jenkins"`
+	API      APIConfig      `yaml:"api"`
 }
 
 // ServerConfig represents the server configuration
@@ -34,16 +34,20 @@ type DatabaseConfig struct {
 
 // JenkinsConfig represents the Jenkins configuration
 type JenkinsConfig struct {
-	URL      string `yaml:"url"`
-	Username string `yaml:"username"` // Jenkins username (optional, defaults to token if not provided)
-	Token    string `yaml:"token"`
-	Timeout  int    `yaml:"timeout"` // Request timeout in seconds (default: 30)
+	Default   string                   `yaml:"default"`
+	Instances map[string]JenkinsConfig `yaml:"instances"`
+	URL       string                   `yaml:"url"`
+	Username  string                   `yaml:"username"` // Jenkins username (optional, defaults to token if not provided)
+	Token     string                   `yaml:"token"`
+	Timeout   int                      `yaml:"timeout"` // Request timeout in seconds (default: 30)
 }
 
 // APIConfig represents the API configuration
 type APIConfig struct {
 	Keys []string `yaml:"keys"`
 }
+
+var instanceNamePattern = regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
 
 // Load loads the configuration from the given file path
 func Load(filePath string) (*Config, error) {
@@ -55,7 +59,9 @@ func Load(filePath string) (*Config, error) {
 
 	// Parse the YAML into the Config struct
 	config := &Config{}
-	err = yaml.Unmarshal(data, config)
+	decoder := yaml.NewDecoder(bytes.NewReader(data))
+	decoder.KnownFields(true)
+	err = decoder.Decode(config)
 	if err != nil {
 		return nil, err
 	}
@@ -91,21 +97,6 @@ func applyEnvVars(config *Config) {
 		config.Database.Path = path
 	}
 
-	// Jenkins configuration
-	if url := os.Getenv("TRIGGERMESH_JENKINS_URL"); url != "" {
-		config.Jenkins.URL = url
-	}
-	if username := os.Getenv("TRIGGERMESH_JENKINS_USERNAME"); username != "" {
-		config.Jenkins.Username = username
-	}
-	if token := os.Getenv("TRIGGERMESH_JENKINS_TOKEN"); token != "" {
-		config.Jenkins.Token = token
-	}
-	if timeout := os.Getenv("TRIGGERMESH_JENKINS_TIMEOUT"); timeout != "" {
-		if t, err := strconv.Atoi(timeout); err == nil && t > 0 {
-			config.Jenkins.Timeout = t
-		}
-	}
 }
 
 // setDefaults sets default values for the configuration
@@ -127,21 +118,14 @@ func setDefaults(config *Config) {
 	}
 
 	// Jenkins defaults
-	if config.Jenkins.Timeout == 0 {
-		config.Jenkins.Timeout = 30 // 30 seconds default timeout
-	}
-	if config.Jenkins.Username == "" {
-		// If username is not provided, use token as username (Jenkins API token authentication)
-		config.Jenkins.Username = config.Jenkins.Token
-	}
-	for name, target := range config.JenkinsTargets {
+	for name, target := range config.Jenkins.Instances {
 		if target.Timeout == 0 {
-			target.Timeout = config.Jenkins.Timeout
+			target.Timeout = 30
 		}
 		if target.Username == "" {
 			target.Username = target.Token
 		}
-		config.JenkinsTargets[name] = target
+		config.Jenkins.Instances[name] = target
 	}
 }
 
@@ -183,30 +167,18 @@ func validateConfig(cfg *Config) error {
 	}
 
 	// Validate Jenkins configuration
-	if cfg.Jenkins.URL == "" {
-		return fmt.Errorf("jenkins.url is required")
+	if cfg.Jenkins.URL != "" || cfg.Jenkins.Token != "" || cfg.Jenkins.Username != "" || cfg.Jenkins.Timeout != 0 {
+		return fmt.Errorf("jenkins credentials must be configured under jenkins.instances")
 	}
-	if _, err := url.Parse(cfg.Jenkins.URL); err != nil {
-		return fmt.Errorf("invalid jenkins.url: %v", err)
+	if _, ok := cfg.Jenkins.Instances[cfg.Jenkins.Default]; !ok {
+		return fmt.Errorf("jenkins.default must name an instance in jenkins.instances")
 	}
-	if cfg.Jenkins.Token == "" {
-		return fmt.Errorf("jenkins.token is required")
-	}
-	for name, target := range cfg.JenkinsTargets {
-		if name == "" || target.URL == "" || target.Token == "" {
-			return fmt.Errorf("jenkins_targets[%q] requires a name, url, and token", name)
+	for name, instance := range cfg.Jenkins.Instances {
+		if !instanceNamePattern.MatchString(name) {
+			return fmt.Errorf("jenkins.instances name %q must contain only letters, numbers, underscores, or hyphens", name)
 		}
-		parsed, err := url.Parse(target.URL)
-		if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" {
-			return fmt.Errorf("invalid jenkins_targets[%q].url", name)
-		}
-	}
-	for job, target := range cfg.JobTargets {
-		if job == "" || target == "" {
-			return fmt.Errorf("job_targets requires non-empty job and target names")
-		}
-		if _, ok := cfg.JenkinsTargets[target]; !ok {
-			return fmt.Errorf("job_targets[%q] refers to unknown Jenkins target %q", job, target)
+		if err := validateJenkinsInstance("jenkins.instances["+name+"]", instance); err != nil {
+			return err
 		}
 	}
 
@@ -220,5 +192,22 @@ func validateConfig(cfg *Config) error {
 		}
 	}
 
+	return nil
+}
+
+func validateJenkinsInstance(name string, instance JenkinsConfig) error {
+	if instance.Default != "" || len(instance.Instances) != 0 {
+		return fmt.Errorf("%s cannot contain nested instances", name)
+	}
+	parsed, err := url.Parse(instance.URL)
+	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" {
+		return fmt.Errorf("%s.url must be an HTTP(S) URL", name)
+	}
+	if instance.Token == "" {
+		return fmt.Errorf("%s.token is required", name)
+	}
+	if instance.Timeout < 1 {
+		return fmt.Errorf("%s.timeout must be positive", name)
+	}
 	return nil
 }

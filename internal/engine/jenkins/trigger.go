@@ -29,6 +29,11 @@ func NewTrigger(client *Client) *Trigger {
 	}
 }
 
+// JobExists checks whether this Jenkins instance contains the job.
+func (t *Trigger) JobExists(ctx context.Context, jobName string) (bool, error) {
+	return t.client.JobExists(ctx, jobName)
+}
+
 // TriggerBuild triggers a Jenkins build for the given job with the provided parameters
 func (t *Trigger) TriggerBuild(jobName string, params map[string]string) (*engine.BuildResult, error) {
 	// Validate job name
@@ -40,7 +45,7 @@ func (t *Trigger) TriggerBuild(jobName string, params map[string]string) (*engin
 	}
 
 	// Validate job name format (no special characters that could cause path issues)
-	if strings.Contains(jobName, "..") || strings.Contains(jobName, "/") {
+	if strings.Contains(jobName, "..") || strings.Trim(jobName, "/") != jobName || strings.Contains(jobName, "//") {
 		return &engine.BuildResult{
 			Success: false,
 			Message: "Invalid job name format",
@@ -48,11 +53,11 @@ func (t *Trigger) TriggerBuild(jobName string, params map[string]string) (*engin
 	}
 
 	// Build the path for the build trigger API
-	buildPath := fmt.Sprintf("/job/%s/build", url.PathEscape(jobName))
+	buildPath := jobPath(jobName) + "/build"
 
 	// If there are parameters, use the buildWithParameters endpoint
 	if len(params) > 0 {
-		buildPath = fmt.Sprintf("/job/%s/buildWithParameters", url.PathEscape(jobName))
+		buildPath = jobPath(jobName) + "/buildWithParameters"
 	}
 
 	// Jenkins API for buildWithParameters expects form-encoded data, not JSON
@@ -97,15 +102,15 @@ func (t *Trigger) GetBuildStatus(buildID string) (*engine.BuildResult, error) {
 	// Parse buildID to extract job name and build number
 	// Expected format: jobName/buildNumber
 	parts := strings.Split(buildID, "/")
-	if len(parts) != 2 {
+	if len(parts) < 2 {
 		return &engine.BuildResult{
 			Success: false,
 			Message: "Invalid build ID format. Expected: jobName/buildNumber",
 		}, fmt.Errorf("invalid build ID format: %s", buildID)
 	}
 
-	jobName := parts[0]
-	buildNumber := parts[1]
+	jobName := strings.Join(parts[:len(parts)-1], "/")
+	buildNumber := parts[len(parts)-1]
 
 	// Validate build number
 	if buildNumber == "" {
@@ -116,7 +121,7 @@ func (t *Trigger) GetBuildStatus(buildID string) (*engine.BuildResult, error) {
 	}
 
 	// Build the path for the build info API
-	buildPath := fmt.Sprintf("/job/%s/%s/api/json", url.PathEscape(jobName), url.PathEscape(buildNumber))
+	buildPath := fmt.Sprintf("%s/%s/api/json", jobPath(jobName), url.PathEscape(buildNumber))
 
 	// Send the request to Jenkins
 	// Use context.Background() for now (can be improved to accept context from handler)
@@ -138,13 +143,13 @@ func (t *Trigger) GetBuildStatus(buildID string) (*engine.BuildResult, error) {
 			Success:  true,
 			Message:  fmt.Sprintf("Retrieved build status for %s", buildID),
 			BuildID:  buildID,
-			BuildURL: fmt.Sprintf("%s/job/%s/%s/", t.client.url, jobName, buildNumber),
+			BuildURL: fmt.Sprintf("%s%s/%s/", t.client.url, jobPath(jobName), buildNumber),
 		}, nil
 	}
 
 	buildURL := buildInfo.URL
 	if buildURL == "" {
-		buildURL = fmt.Sprintf("%s/job/%s/%s/", t.client.url, jobName, buildNumber)
+		buildURL = fmt.Sprintf("%s%s/%s/", t.client.url, jobPath(jobName), buildNumber)
 	}
 
 	return &engine.BuildResult{
