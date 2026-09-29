@@ -13,6 +13,7 @@ type RoutingTrigger struct {
 	routes         map[string]engine.CIEngine
 }
 
+// NewRoutingTrigger configures exact job-name routes to other Jenkins instances.
 func NewRoutingTrigger(defaultTrigger engine.CIEngine, routes map[string]engine.CIEngine) *RoutingTrigger {
 	return &RoutingTrigger{defaultTrigger: defaultTrigger, routes: routes}
 }
@@ -24,10 +25,12 @@ func (r *RoutingTrigger) triggerForJob(jobName string) engine.CIEngine {
 	return r.defaultTrigger
 }
 
+// TriggerBuild sends the job to its configured Jenkins instance.
 func (r *RoutingTrigger) TriggerBuild(jobName string, params map[string]string) (*engine.BuildResult, error) {
 	return r.triggerForJob(jobName).TriggerBuild(jobName, params)
 }
 
+// GetBuildStatus queries the same Jenkins instance that owns the job.
 func (r *RoutingTrigger) GetBuildStatus(buildID string) (*engine.BuildResult, error) {
 	jobName, _, _ := strings.Cut(buildID, "/")
 	return r.triggerForJob(jobName).GetBuildStatus(buildID)

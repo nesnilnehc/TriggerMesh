@@ -153,10 +153,10 @@ api:
 		t.Fatal(err)
 	}
 	defer os.Remove(tmpFile.Name())
-	if _, err := tmpFile.WriteString(configContent); err != nil {
+	if _, err = tmpFile.WriteString(configContent); err != nil {
 		t.Fatal(err)
 	}
-	if err := tmpFile.Close(); err != nil {
+	if err = tmpFile.Close(); err != nil {
 		t.Fatal(err)
 	}
 	cfg, err := config.Load(tmpFile.Name())
