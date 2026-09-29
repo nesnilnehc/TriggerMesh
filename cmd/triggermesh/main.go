@@ -13,6 +13,7 @@ import (
 
 	"triggermesh/internal/api"
 	"triggermesh/internal/config"
+	"triggermesh/internal/engine"
 	"triggermesh/internal/engine/jenkins"
 	"triggermesh/internal/logger"
 	"triggermesh/internal/storage"
@@ -42,9 +43,18 @@ func main() {
 	}
 	defer storage.Close()
 
-	// Initialize Jenkins client and engine
+	// Keep the original Jenkins instance as the default for existing jobs.
 	jenkinsClient := jenkins.NewClient(cfg.Jenkins)
-	jenkinsEngine := jenkins.NewTrigger(jenkinsClient)
+	defaultEngine := jenkins.NewTrigger(jenkinsClient)
+	targets := make(map[string]engine.CIEngine, len(cfg.JenkinsTargets))
+	for name, targetConfig := range cfg.JenkinsTargets {
+		targets[name] = jenkins.NewTrigger(jenkins.NewClient(targetConfig))
+	}
+	routes := make(map[string]engine.CIEngine, len(cfg.JobTargets))
+	for job, targetName := range cfg.JobTargets {
+		routes[job] = targets[targetName]
+	}
+	jenkinsEngine := jenkins.NewRoutingTrigger(defaultEngine, routes)
 
 	// Initialize router
 	router := api.NewRouter(*cfg, jenkinsEngine)

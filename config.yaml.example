@@ -11,6 +11,16 @@ jenkins:
   token: your-jenkins-token
   timeout: 30  # Request timeout in seconds (default: 30)
 
+# Optional: route selected jobs to another Jenkins instance. Other jobs keep
+# using the default "jenkins" configuration above.
+# jenkins_targets:
+#   ddi:
+#     url: http://your-ddi-jenkins-url
+#     username: your-ddi-jenkins-username
+#     token: your-ddi-jenkins-token
+# job_targets:
+#   publish-recloud-ddi-artifacts: ddi
+
 api:
   keys:
     - your-api-key

@@ -224,6 +224,14 @@ database:
 jenkins:
   url: https://your-jenkins-url
   token: your-jenkins-token
+# Optional: route selected jobs to another Jenkins instance.
+jenkins_targets:
+  ddi:
+    url: http://your-ddi-jenkins-url
+    username: your-ddi-jenkins-username
+    token: your-ddi-jenkins-token
+job_targets:
+  publish-recloud-ddi-artifacts: ddi
 api:
   keys:
     - your-api-key
@@ -293,6 +301,10 @@ Currently, only Jenkins engine is supported. Configuration for other CI engines 
 |-----------------|--------|---------|------------------------|
 | jenkins.url     | string | -       | Jenkins server URL     |
 | jenkins.token   | string | -       | Jenkins API Token      |
+| jenkins_targets | map | - | Additional Jenkins instances with separate URLs and credentials |
+| job_targets | map | - | Exact job-name routes to `jenkins_targets`; unmapped jobs use the default instance |
+
+After deploying a version that supports this configuration, verify the target credentials with a read-only GET to `/job/publish-recloud-ddi-artifacts/api/json` before triggering a build. Do not replace the default `jenkins.url` with the DDI instance; existing jobs would then use the wrong Jenkins server.
 
 ### API Configuration
 

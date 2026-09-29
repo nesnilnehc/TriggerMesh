@@ -11,10 +11,12 @@ import (
 
 // Config represents the application configuration
 type Config struct {
-	Server   ServerConfig   `yaml:"server"`
-	Database DatabaseConfig `yaml:"database"`
-	Jenkins  JenkinsConfig  `yaml:"jenkins"`
-	API      APIConfig      `yaml:"api"`
+	Server         ServerConfig             `yaml:"server"`
+	Database       DatabaseConfig           `yaml:"database"`
+	Jenkins        JenkinsConfig            `yaml:"jenkins"`
+	JenkinsTargets map[string]JenkinsConfig `yaml:"jenkins_targets"`
+	JobTargets     map[string]string        `yaml:"job_targets"`
+	API            APIConfig                `yaml:"api"`
 }
 
 // ServerConfig represents the server configuration
@@ -132,6 +134,15 @@ func setDefaults(config *Config) {
 		// If username is not provided, use token as username (Jenkins API token authentication)
 		config.Jenkins.Username = config.Jenkins.Token
 	}
+	for name, target := range config.JenkinsTargets {
+		if target.Timeout == 0 {
+			target.Timeout = config.Jenkins.Timeout
+		}
+		if target.Username == "" {
+			target.Username = target.Token
+		}
+		config.JenkinsTargets[name] = target
+	}
 }
 
 // GetLogLevel returns the log level from the environment
@@ -180,6 +191,23 @@ func validateConfig(cfg *Config) error {
 	}
 	if cfg.Jenkins.Token == "" {
 		return fmt.Errorf("jenkins.token is required")
+	}
+	for name, target := range cfg.JenkinsTargets {
+		if name == "" || target.URL == "" || target.Token == "" {
+			return fmt.Errorf("jenkins_targets[%q] requires a name, url, and token", name)
+		}
+		parsed, err := url.Parse(target.URL)
+		if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" {
+			return fmt.Errorf("invalid jenkins_targets[%q].url", name)
+		}
+	}
+	for job, target := range cfg.JobTargets {
+		if job == "" || target == "" {
+			return fmt.Errorf("job_targets requires non-empty job and target names")
+		}
+		if _, ok := cfg.JenkinsTargets[target]; !ok {
+			return fmt.Errorf("job_targets[%q] refers to unknown Jenkins target %q", job, target)
+		}
 	}
 
 	// Validate API keys

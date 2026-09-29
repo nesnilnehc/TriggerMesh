@@ -133,6 +133,52 @@ func TestConfigDefaults(t *testing.T) {
 	}
 }
 
+func TestJenkinsJobTargets(t *testing.T) {
+	configContent := `
+jenkins:
+  url: https://old-jenkins.example.com
+  token: old-token
+jenkins_targets:
+  ddi:
+    url: https://ddi-jenkins.example.com
+    token: ddi-token
+job_targets:
+  publish-recloud-ddi-artifacts: ddi
+api:
+  keys:
+    - test-api-key
+`
+	tmpFile, err := os.CreateTemp("", "config-targets-*.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(tmpFile.Name())
+	if _, err := tmpFile.WriteString(configContent); err != nil {
+		t.Fatal(err)
+	}
+	if err := tmpFile.Close(); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := config.Load(tmpFile.Name())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.JobTargets["publish-recloud-ddi-artifacts"] != "ddi" {
+		t.Fatalf("unexpected job target: %v", cfg.JobTargets)
+	}
+	if target := cfg.JenkinsTargets["ddi"]; target.Username != "ddi-token" || target.Timeout != cfg.Jenkins.Timeout {
+		t.Fatalf("target defaults not applied: %+v", target)
+	}
+
+	badConfig := strings.Replace(configContent, "publish-recloud-ddi-artifacts: ddi", "publish-recloud-ddi-artifacts: missing", 1)
+	if err := os.WriteFile(tmpFile.Name(), []byte(badConfig), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := config.Load(tmpFile.Name()); err == nil || !strings.Contains(err.Error(), "unknown Jenkins target") {
+		t.Fatalf("expected unknown target error, got %v", err)
+	}
+}
+
 func TestConfigEnvVars(t *testing.T) {
 	// Set environment variables (t.Setenv automatically cleans up after test)
 	t.Setenv("TRIGGERMESH_SERVER_PORT", "9090")

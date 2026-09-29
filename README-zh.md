@@ -224,6 +224,14 @@ database:
 jenkins:
   url: https://your-jenkins-url
   token: your-jenkins-token
+# 可选：按任务路由到另一台 Jenkins；未列出的任务仍使用上方默认实例。
+jenkins_targets:
+  ddi:
+    url: http://your-ddi-jenkins-url
+    username: your-ddi-jenkins-username
+    token: your-ddi-jenkins-token
+job_targets:
+  publish-recloud-ddi-artifacts: ddi
 api:
   keys:
     - your-api-key
@@ -293,6 +301,10 @@ Authorization: Bearer your-api-key
 |-------------|--------|--------|-------------------|
 | jenkins.url   | string | -      | Jenkins 服务器地址 |
 | jenkins.token | string | -      | Jenkins API Token |
+| jenkins_targets | map | - | 额外的 Jenkins 实例，每个实例使用独立 URL 和凭据 |
+| job_targets | map | - | 精确任务名到 `jenkins_targets` 名称的映射；其他任务使用默认实例 |
+
+更新生产配置并部署支持此配置的新版服务后，先用目标实例的 API 凭据只读查询 `/job/publish-recloud-ddi-artifacts/api/json`，确认返回 200 且任务名正确，再发起一次构建。不要直接把默认 `jenkins.url` 改为 DDI 实例，否则现有任务会转发到错误的 Jenkins。
 
 ### API 配置
 
