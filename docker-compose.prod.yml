@@ -2,9 +2,9 @@ services:
   triggermesh:
     # 使用 GitHub Container Registry 发布的镜像（推荐用于生产环境）
     # 镜像会在 GitHub 发布 tag 时自动构建并推送
-    # 通过环境变量 TRIGGERMESH_VERSION 指定版本，默认为 v1.0.1
-    # 拉取镜像：docker pull ghcr.io/nesnilnehc/triggermesh:${TRIGGERMESH_VERSION:-v1.0.1}
-    image: ghcr.io/nesnilnehc/triggermesh:${TRIGGERMESH_VERSION:-v1.0.1}
+    # 通过环境变量 TRIGGERMESH_VERSION 指定版本，默认为 v1.0.2
+    # 拉取镜像：docker pull ghcr.io/nesnilnehc/triggermesh:${TRIGGERMESH_VERSION:-v1.0.2}
+    image: ghcr.io/nesnilnehc/triggermesh:${TRIGGERMESH_VERSION:-v1.0.2}
 
     # 如果需要使用 latest 标签（不推荐用于生产环境）
     # image: ghcr.io/nesnilnehc/triggermesh:latest

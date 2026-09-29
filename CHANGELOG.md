@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Planned
+
+- Support for more CI engines (GitLab CI, GitHub Actions, CircleCI, Travis CI)
+- Web UI management interface
+- Distributed deployment support
+- Log rotation functionality
+- Monitoring and alerting mechanisms
+
+## [1.0.2] - 2026-09-29
+
 ### Added
 
 - Route selected Jenkins jobs to separately configured instances while keeping existing jobs on the default instance.
@@ -15,14 +25,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Document per-job Jenkins configuration and require the target instance's own API credentials for DDI builds.
 - Publish version tags through one workflow with a multi-architecture Docker image.
-
-### Planned
-
-- Support for more CI engines (GitLab CI, GitHub Actions, CircleCI, Travis CI)
-- Web UI management interface
-- Distributed deployment support
-- Log rotation functionality
-- Monitoring and alerting mechanisms
 
 ## [1.0.0] - 2026-01-15
 
@@ -123,3 +125,4 @@ None (initial version)
 - Supports concurrent request handling
 
 [1.0.0]: https://github.com/nesnilnehc/triggermesh/releases/tag/v1.0.0
+[1.0.2]: https://github.com/nesnilnehc/triggermesh/releases/tag/v1.0.2

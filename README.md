@@ -142,8 +142,8 @@ cp config.yaml.example config.yaml
 mkdir -p data
 
 # 4. Pull Docker image (optional, docker-compose will pull automatically)
-# Defaults to v1.0.1, can specify other version via TRIGGERMESH_VERSION env var
-docker pull ghcr.io/nesnilnehc/triggermesh:v1.0.1
+# Defaults to v1.0.2, can specify other version via TRIGGERMESH_VERSION env var
+docker pull ghcr.io/nesnilnehc/triggermesh:v1.0.2
 
 # 5. Start service (using production configuration)
 docker-compose -f docker-compose.prod.yml up -d
@@ -189,8 +189,8 @@ docker-compose logs -f
 
 - **Image Registry**: `ghcr.io/nesnilnehc/triggermesh`
 - **Tag Format**: Version number (e.g., `v1.0.1`) or `latest`
-- **Pull Image**: `docker pull ghcr.io/nesnilnehc/triggermesh:v1.0.1`
-- **Version Management**: Specify version via `TRIGGERMESH_VERSION` environment variable in `docker-compose.prod.yml`, defaults to `v1.0.1`
+- **Pull Image**: `docker pull ghcr.io/nesnilnehc/triggermesh:v1.0.2`
+- **Version Management**: Specify version via `TRIGGERMESH_VERSION` environment variable in `docker-compose.prod.yml`, defaults to `v1.0.2`
 - **Image Authentication**: If the image is set to private, you need to login first:
   ```bash
   # Use GitHub username and Personal Access Token
@@ -205,7 +205,7 @@ docker-compose logs -f
 docker-compose up --build
 ```
 
-> **Version Information**: Current latest stable version is [v1.0.1](https://github.com/nesnilnehc/triggermesh/releases/tag/v1.0.1) (or check [latest release](https://github.com/nesnilnehc/triggermesh/releases/latest))
+> **Version Information**: Current latest stable version is [v1.0.2](https://github.com/nesnilnehc/triggermesh/releases/tag/v1.0.2) (or check [latest release](https://github.com/nesnilnehc/triggermesh/releases/latest))
 > 
 > **⚠️ Note**: Version `v1.0.0` has a CGO compilation issue and should not be used.
 > **About Module Path**: This project uses `triggermesh` as the module path, with import paths in code as `triggermesh/internal/...`. Since all project dependencies are public modules, both Method 1 and Method 2 require no special configuration.

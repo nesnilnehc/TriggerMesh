@@ -142,8 +142,8 @@ cp config.yaml.example config.yaml
 mkdir -p data
 
 # 4. 拉取 Docker 镜像（可选，docker-compose 会自动拉取）
-# 默认使用 v1.0.1，可通过环境变量 TRIGGERMESH_VERSION 指定其他版本
-docker pull ghcr.io/nesnilnehc/triggermesh:v1.0.1
+# 默认使用 v1.0.2，可通过环境变量 TRIGGERMESH_VERSION 指定其他版本
+docker pull ghcr.io/nesnilnehc/triggermesh:v1.0.2
 
 # 5. 启动服务（使用生产环境配置）
 docker-compose -f docker-compose.prod.yml up -d
@@ -189,8 +189,8 @@ docker-compose logs -f
 
 - **镜像地址**：`ghcr.io/nesnilnehc/triggermesh`
 - **标签格式**：版本号（如 `v1.0.1`）或 `latest`
-- **拉取镜像**：`docker pull ghcr.io/nesnilnehc/triggermesh:v1.0.1`
-- **版本管理**：在 `docker-compose.prod.yml` 中通过环境变量 `TRIGGERMESH_VERSION` 指定版本，默认为 `v1.0.1`
+- **拉取镜像**：`docker pull ghcr.io/nesnilnehc/triggermesh:v1.0.2`
+- **版本管理**：在 `docker-compose.prod.yml` 中通过环境变量 `TRIGGERMESH_VERSION` 指定版本，默认为 `v1.0.2`
 - **镜像认证**：如果镜像设置为私有，需要先登录：
   ```bash
   # 使用 GitHub 用户名和 Personal Access Token
@@ -205,7 +205,7 @@ docker-compose logs -f
 docker-compose up --build
 ```
 
-> **版本信息**：当前最新稳定版本为 [v1.0.1](https://github.com/nesnilnehc/triggermesh/releases/tag/v1.0.1)（或查看 [最新发布](https://github.com/nesnilnehc/triggermesh/releases/latest)）
+> **版本信息**：当前最新稳定版本为 [v1.0.2](https://github.com/nesnilnehc/triggermesh/releases/tag/v1.0.2)（或查看 [最新发布](https://github.com/nesnilnehc/triggermesh/releases/latest)）
 > 
 > **⚠️ 注意**：`v1.0.0` 版本存在 CGO 编译问题，请勿使用。
 > **关于模块路径**：本项目使用 `triggermesh` 作为模块路径，代码中的导入路径为 `triggermesh/internal/...`。由于项目依赖都是公共模块，使用方式一和方式二都无需特殊配置。
