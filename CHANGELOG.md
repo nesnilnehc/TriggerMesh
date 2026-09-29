@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Document per-job Jenkins configuration and require the target instance's own API credentials for DDI builds.
+- Publish version tags through one workflow with a multi-architecture Docker image.
 
 ### Planned
 
