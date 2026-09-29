@@ -23,7 +23,9 @@ type RouteError struct {
 	message string
 }
 
-func (e *RouteError) Error() string   { return e.message }
+func (e *RouteError) Error() string { return e.message }
+
+// StatusCode returns the HTTP status appropriate for this routing failure.
 func (e *RouteError) StatusCode() int { return e.status }
 
 // RoutingTrigger selects a requested instance or discovers a unique job.
@@ -32,6 +34,7 @@ type RoutingTrigger struct {
 	instances   map[string]JobEngine
 }
 
+// NewRoutingTrigger creates a router for the configured Jenkins instances.
 func NewRoutingTrigger(defaultName string, instances map[string]JobEngine) *RoutingTrigger {
 	return &RoutingTrigger{defaultName: defaultName, instances: instances}
 }
