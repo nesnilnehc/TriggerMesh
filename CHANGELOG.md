@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Route selected Jenkins jobs to separately configured instances while keeping existing jobs on the default instance.
+
+### Changed
+
+- Document per-job Jenkins configuration and require the target instance's own API credentials for DDI builds.
+
+### Planned
+
+- Support for more CI engines (GitLab CI, GitHub Actions, CircleCI, Travis CI)
+- Web UI management interface
+- Distributed deployment support
+- Log rotation functionality
+- Monitoring and alerting mechanisms
+
 ## [1.0.0] - 2026-01-15
 
 ### Added
@@ -102,17 +120,5 @@ None (initial version)
 - Lightweight design
 - Efficient database operations
 - Supports concurrent request handling
-
----
-
-## [Unreleased]
-
-### Planned
-
-- Support for more CI engines (GitLab CI, GitHub Actions, CircleCI, Travis CI)
-- Web UI management interface
-- Distributed deployment support
-- Log rotation functionality
-- Monitoring and alerting mechanisms
 
 [1.0.0]: https://github.com/nesnilnehc/triggermesh/releases/tag/v1.0.0
